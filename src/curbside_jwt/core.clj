@@ -3,12 +3,12 @@
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm)
    (com.nimbusds.jose.crypto MACSigner RSASSASigner ECDSASigner)
    (com.nimbusds.jose.jwk JWKSet RSAKey)
+   (com.nimbusds.jwt JWTClaimsSet)
    (java.io File)
    (java.net URL)
    (java.security KeyPairGenerator SecureRandom)
    (java.util UUID)
-   (java.lang System)
-   ))
+   (java.lang System)))
 
 (defn java-println
   "Can be used to print a JWK created with gen-rsa-jwk as valid JSON.
@@ -34,10 +34,12 @@
        (.getKeys)
        (seq)))
 
-(defn gen-rsa-jwkset
+(defn gen-rsa-jwk
   "Generate a new JWK RSA keypair. key-len arg should be 2048 or larger.
    If uuid is true, assigns a UUID to the keypair.
-   See https://en.wikipedia.org/wiki/Key_size#Asymmetric_algorithm_key_lengths"
+   See https://en.wikipedia.org/wiki/Key_size#Asymmetric_algorithm_key_lengths
+   The returned JWK contains both the private and public keys! Use
+   jwk-public-key to extract the public key."
   [key-len uuid?]
   (let [key-pair-gen (KeyPairGenerator/getInstance "RSA")
         key-pair (do (.initialize key-pair-gen key-len)
@@ -47,13 +49,9 @@
         ((fn [k] (if uuid? (.keyID k (.toString (UUID/randomUUID))) k)))
         (.build))))
 
-; TODO: figure out how to determine which key in a JWKSet is the private key.
-(defn jwkset-private-key
+(defn jwk-public-key
   [jwk]
-  (->> jwk
-      (.getKeys)
-      (filter (fn [x] (.isPrivate x)))
-      (first)))
+  (.toPublicJWK jwk))
 
 (defn- sign-jws
   "Given a JWSHeader, JWSSigner, and payload, serialize a JWS to a string.
@@ -71,6 +69,22 @@
                :es384 (com.nimbusds.jose.JWSAlgorithm/ES384)
                :es512 (com.nimbusds.jose.JWSAlgorithm/ES512))]
     (.build (.keyID (new com.nimbusds.jose.JWSHeader$Builder algo)))))
+
+(defn mk-claims-set
+  [claims]
+  (let [defClaims {:sub (fn [x y] (.subject x y))
+                   :aud (fn [x y] (.audience x y))
+                   :exp (fn [x y] (.expirationTime x y))
+                   :iss (fn [x y] (.issuer x y))
+                   :iat (fn [x y] (.issueTime x y))
+                   :jti (fn [x y] (.jwtID x y))
+                   :nbf (fn [x y] (.notBeforeTime x y))}
+        add-claim (fn [builder k v]
+            (if (contains? defClaims k)
+                ((defClaims k) builder v)
+                (.claim builder (name k) v)))]
+    (.build
+     (reduce-kv add-claim (new com.nimbusds.jwt.JWTClaimsSet$Builder) claims))))
 
 (defn encode-jws
   ([algo payload signing-key]
