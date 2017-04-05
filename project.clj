@@ -2,4 +2,4 @@
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [com.nimbusds/nimbus-jose-jwt "2.26.1"]])
+                 [com.nimbusds/nimbus-jose-jwt "4.34.2"]])

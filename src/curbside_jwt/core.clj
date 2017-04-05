@@ -1,7 +1,7 @@
 (ns curbside-jwt.core
   (:import
-   (com.nimbusds.jose JWSHeader Payload JWSObject)
-   (com.nimbusds.jose.crypto MACSigner)
+   (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm)
+   (com.nimbusds.jose.crypto MACSigner RSASSASigner ECDSASigner)
    (com.nimbusds.jose.jwk JWKSet RSAKey)
    (java.io File)
    (java.net URL)
@@ -34,7 +34,7 @@
        (.getKeys)
        (seq)))
 
-(defn gen-rsa-jwk
+(defn gen-rsa-jwkset
   "Generate a new JWK RSA keypair. key-len arg should be 2048 or larger.
    If uuid is true, assigns a UUID to the keypair.
    See https://en.wikipedia.org/wiki/Key_size#Asymmetric_algorithm_key_lengths"
@@ -47,20 +47,50 @@
         ((fn [k] (if uuid? (.keyID k (.toString (UUID/randomUUID))) k)))
         (.build))))
 
-(defn hmac-jws
-  "Encode an HMAC-signed JWS. algo should be one of :hs256, :hs384, or :hs512.
-   payload can be a string, bytes, or one of several Nimbus classes.
-   Returns a string."
-  [algo payload]
-  (let [random (new SecureRandom)
-        shared-secret (make-array Byte/TYPE 32)
-        signer (do (.nextBytes random shared-secret)
-                   (new MACSigner shared-secret))
-        algorithm (case algo
-                    :hs256 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS256))
-                    :hs384 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS384))
-                    :hs512 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS512)))
-        payload (new Payload payload)
-        jwsObject (new JWSObject algorithm payload)]
+; TODO: figure out how to determine which key in a JWKSet is the private key.
+(defn jwkset-private-key
+  [jwk]
+  (->> jwk
+      (.getKeys)
+      (filter (fn [x] (.isPrivate x)))
+      (first)))
+
+(defn- sign-jws
+  "Given a JWSHeader, JWSSigner, and payload, serialize a JWS to a string.
+   payload can be a string, bytes, or one of several Nimbus classes."
+  [header signer payload]
+  (let [payload (new Payload payload)
+        jwsObject (new JWSObject header payload)]
     (.sign jwsObject signer)
     (.serialize jwsObject)))
+
+(defn- mk-ec-header
+  [algo ec-key-id]
+  (let [algo (case algo
+               :es256 (com.nimbusds.jose.JWSAlgorithm/ES256)
+               :es384 (com.nimbusds.jose.JWSAlgorithm/ES384)
+               :es512 (com.nimbusds.jose.JWSAlgorithm/ES512))]
+    (.build (.keyID (new com.nimbusds.jose.JWSHeader$Builder algo)))))
+
+(defn encode-jws
+  ([algo payload signing-key]
+   (encode-jws algo payload signing-key nil))
+  ([algo payload signing-key ec-key-id]
+   (let [signer (case algo
+                  (:rs256 :rs384 :rs512)
+                  (new RSASSASigner signing-key)
+                  (:hs256 :hs384 :hs512)
+                  (new MACSigner signing-key)
+                  (:ec256 :ec384 :ec512)
+                  (new ECDSASigner (.getS signing-key)))
+         header (case algo
+                  :rs256 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/RS256))
+                  :rs384 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/RS384))
+                  :rs512 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/RS512))
+
+                  :hs256 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS256))
+                  :hs384 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS384))
+                  :hs512 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS512))
+
+                  (:es256 :es384 :es512) (mk-ec-header algo ec-key-id))]
+     (sign-jws header signer payload))))
