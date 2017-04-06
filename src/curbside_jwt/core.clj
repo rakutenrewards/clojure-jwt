@@ -1,6 +1,5 @@
 (ns curbside-jwt.core
   (:require
-   [clj-time.core :as t]
    [clojure.string :as str]
    [clojure.walk :refer [keywordize-keys]])
   (:import
@@ -134,6 +133,10 @@
                         (.getAlgorithm)
                         (.toString)
                         (= (str/upper-case (name alg)))))
+        expired? (fn [{:keys [exp]}]
+                   (and exp (.after curr-time exp)))
+        too-early? (fn [{:keys [nbf]}]
+                     (and nbf (.before curr-time nbf)))
         claims (claims-set->map (.getJWTClaimsSet jwt))
         _ (println claims)]
     (cond
@@ -143,15 +146,19 @@
       :iss-mismatch
       (implies iss (not= (:sub claims) sub))
       :sub-mismatch
-      (implies aud (not= (:aud claims) aud))
+      (implies aud (not (some #(= % aud) (:aud claims))))
       :aud-mismatch
+      (expired? claims)
+      :expired
+      (too-early? claims)
+      :before-nbf
 
       :else
       claims)))
 
 (defn unsign-jwt
   ([alg jwt unsigning-key expected-claims]
-   (unsign-jwt alg jwt unsigning-key expected-claims (t/now)))
+   (unsign-jwt alg jwt unsigning-key expected-claims (new java.util.Date)))
   ([alg jwt unsigning-key expected-claims curr-time]
    (let [verifier (case alg
                     (:hs256 :hs384 :hs512) (new MACVerifier unsigning-key)
@@ -168,7 +175,20 @@
 
 (defn encrypt-jwt
   [alg enc claims key]
-  (let [alg (case alg
+  (let [encrypter (case alg
+                    (:rsa1-5 :rsa-oaep :rsa-oaep-256)
+                    (new RSAEncrypter key)
+                    (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
+                    (new AESEncrypter key)
+                    :dir
+                    (new DirectEncrypter key)
+                    (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
+                    (new ECDHEncrypter key)
+                    ;TODO password-based encryption.
+                    ;;(:pbes2-hs256-a128kw :pbes2-hs384-a192kw :pbes2-hs512-a256kw)
+                    ;;(new PasswordBasedEncrypter key salt-len num-iters)
+                    )
+        alg (case alg
               :rsa1-5 (com.nimbusds.jose.JWEAlgorithm/RSA1_5)
               :rsa-oaep (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP)
               :rsa-oaep-256 (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP_256)
@@ -200,19 +220,6 @@
         encrypted-jwt (new EncryptedJWT header claims)
         ; TODO: this encrypter only supports a few of the algs above!
         ; need another case statement
-        encrypter (case alg
-                    (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-                    (new RSAEncrypter key)
-                    (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-                    (new AESEncrypter key)
-                    :dir
-                    (new DirectEncrypter key)
-                    (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-                    (new ECDHEncrypter key)
-                    ;TODO password-based encryption.
-                    ;;(:pbes2-hs256-a128kw :pbes2-hs384-a192kw :pbes2-hs512-a256kw)
-                    ;;(new PasswordBasedEncrypter key salt-len num-iters)
-                    )
         ]
     ;TODO: for debugging, try serializing before encrypting to see the JSON
     (.encrypt encrypted-jwt encrypter)
@@ -220,7 +227,7 @@
 
 (defn decrypt-jwt
   ([alg jwt key expected-claims]
-    (decrypt-jwt alg jwt key expected-claims (t/now)))
+    (decrypt-jwt alg jwt key expected-claims (new java.util.Date)))
   ([alg jwt key expected-claims curr-time]
     (let [decrypter (case alg
                       (:rsa1-5 :rsa-oaep :rsa-oaep-256)
@@ -231,12 +238,13 @@
                       (new DirectDecrypter key)
                       (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
                       (new ECDHDecrypter key))
-          decrypted ((try
-                       (.decrypt jwt decrypter)
-                       (catch IllegalStateException e
-                         nil)
-                       (catch JOSEException e
-                         nil)))]
+          jwt (EncryptedJWT/parse jwt)
+          decrypted (try
+                      (.decrypt jwt decrypter)
+                      (catch IllegalStateException e
+                        nil)
+                      (catch JOSEException e
+                        nil))]
       (if decrypted
         (verify-standard-claims decrypted
                                 (assoc expected-claims :alg alg)
