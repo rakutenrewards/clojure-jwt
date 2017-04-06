@@ -5,6 +5,7 @@
 (def rsa-jwk (gen-rsa-jwk 2048 false))
 
 (deftest test-sign-rsa
-  (let [jwt (sign-jwt :rs256 {:iss "curbside.com" :aud "curbside.com"} rsa-jwk)
-        verified (unsign-jwt :rs256 jwt rsa-jwk)]
+  (let [claims {:iss "curbside.com" :aud ["curbside.com"]}
+        jwt (sign-jwt :rs256 claims rsa-jwk)
+        verified (unsign-jwt :rs256 jwt rsa-jwk claims)]
     (is (map? verified))))
