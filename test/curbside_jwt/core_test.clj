@@ -2,6 +2,9 @@
   (:require [clojure.test :refer :all]
             [curbside-jwt.core :refer :all]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1))))
+(def rsa-jwk (gen-rsa-jwk 2048 false))
+
+(deftest test-sign-rsa
+  (let [jwt (sign-jwt :rs256 {:iss "curbside.com" :aud "curbside.com"} rsa-jwk)
+        verified (unsign-jwt :rs256 jwt rsa-jwk)]
+    (is (map? verified))))

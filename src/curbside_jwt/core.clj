@@ -1,20 +1,17 @@
 (ns curbside-jwt.core
+  (:require
+   [clojure.string :as str])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm)
-   (com.nimbusds.jose.crypto MACSigner RSASSASigner ECDSASigner)
+   (com.nimbusds.jose.crypto MACSigner RSASSASigner ECDSASigner
+                             MACVerifier RSASSAVerifier ECDSAVerifier)
    (com.nimbusds.jose.jwk JWKSet RSAKey)
-   (com.nimbusds.jwt JWTClaimsSet)
+   (com.nimbusds.jwt JWTClaimsSet SignedJWT)
    (java.io File)
    (java.net URL)
    (java.security KeyPairGenerator SecureRandom)
    (java.util UUID)
    (java.lang System)))
-
-(defn java-println
-  "Can be used to print a JWK created with gen-rsa-jwk as valid JSON.
-   Clojure's println prints #object gibberish."
-  [x]
-  (.println (System/out) x))
 
 (defn load-jwks-from-file
   "Load a seq of JWKs from a file."
@@ -39,7 +36,7 @@
    If uuid is true, assigns a UUID to the keypair.
    See https://en.wikipedia.org/wiki/Key_size#Asymmetric_algorithm_key_lengths
    The returned JWK contains both the private and public keys! Use
-   jwk-public-key to extract the public key."
+   jwk-public-key to extract the public key. Use .toJSONString to get JSON."
   [key-len uuid?]
   (let [key-pair-gen (KeyPairGenerator/getInstance "RSA")
         key-pair (do (.initialize key-pair-gen key-len)
@@ -52,15 +49,6 @@
 (defn jwk-public-key
   [jwk]
   (.toPublicJWK jwk))
-
-(defn- sign-jws
-  "Given a JWSHeader, JWSSigner, and payload, serialize a JWS to a string.
-   payload can be a string, bytes, or one of several Nimbus classes."
-  [header signer payload]
-  (let [payload (new Payload payload)
-        jwsObject (new JWSObject header payload)]
-    (.sign jwsObject signer)
-    (.serialize jwsObject)))
 
 (defn- mk-ec-header
   [algo ec-key-id]
@@ -86,10 +74,10 @@
     (.build
      (reduce-kv add-claim (new com.nimbusds.jwt.JWTClaimsSet$Builder) claims))))
 
-(defn encode-jws
-  ([algo payload signing-key]
-   (encode-jws algo payload signing-key nil))
-  ([algo payload signing-key ec-key-id]
+(defn sign-jwt
+  ([algo claims signing-key]
+   (sign-jwt algo claims signing-key nil))
+  ([algo claims signing-key ec-key-id]
    (let [signer (case algo
                   (:rs256 :rs384 :rs512)
                   (new RSASSASigner signing-key)
@@ -106,5 +94,35 @@
                   :hs384 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS384))
                   :hs512 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS512))
 
-                  (:es256 :es384 :es512) (mk-ec-header algo ec-key-id))]
-     (sign-jws header signer payload))))
+                  (:es256 :es384 :es512) (mk-ec-header algo ec-key-id))
+         claims (mk-claims-set claims)
+         jwt (new SignedJWT header claims)]
+     (.sign jwt signer)
+     (.serialize jwt))))
+
+(defn unsign-jwt
+  [algo jwt unsigning-key]
+  (let [verifier (case algo
+                   (:hs256 :hs384 :hs512) (new MACVerifier unsigning-key)
+                   (:rs256 :rs384 :rs512) (new RSASSAVerifier unsigning-key)
+                   (:es256 :es384 :es512) (new ECDSAVerifier unsigning-key))
+        parsed (SignedJWT/parse jwt)
+        header-match (fn [a p]
+                       (-> p
+                           (.getHeader)
+                           (.getAlgorithm)
+                           (.toString)
+                           (= (str/upper-case (name a)))))
+        to-map (fn [x]
+                 (->> x
+                     (.getJWTClaimsSet)
+                     (.getClaims)
+                     (into {})))]
+    (cond
+      (not (.verify parsed verifier))
+      :signature-mismatch
+      (not (header-match algo parsed))
+      :algo-mismatch
+
+      :else
+      (to-map parsed))))
