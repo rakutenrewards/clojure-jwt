@@ -147,8 +147,7 @@
                    (and exp (.after curr-time exp)))
         too-early? (fn [{:keys [nbf]}]
                      (and nbf (.before curr-time nbf)))
-        claims (claims-set->map (.getJWTClaimsSet jwt))
-        _ (println claims)]
+        claims (claims-set->map (.getJWTClaimsSet jwt))]
     (cond
       (not (alg-match (:alg expected) jwt))
       :alg-mismatch
