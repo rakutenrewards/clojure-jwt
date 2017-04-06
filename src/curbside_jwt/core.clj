@@ -68,9 +68,9 @@
                    :jti (fn [x y] (.jwtID x y))
                    :nbf (fn [x y] (.notBeforeTime x y))}
         add-claim (fn [builder k v]
-            (if (contains? defClaims k)
-                ((defClaims k) builder v)
-                (.claim builder (name k) v)))]
+                    (if (contains? defClaims k)
+                      ((defClaims k) builder v)
+                      (.claim builder (name k) v)))]
     (.build
      (reduce-kv add-claim (new com.nimbusds.jwt.JWTClaimsSet$Builder) claims))))
 
@@ -115,9 +115,9 @@
                            (= (str/upper-case (name a)))))
         to-map (fn [x]
                  (->> x
-                     (.getJWTClaimsSet)
-                     (.getClaims)
-                     (into {})))]
+                      (.getJWTClaimsSet)
+                      (.getClaims)
+                      (into {})))]
     (cond
       (not (.verify parsed verifier))
       :signature-mismatch
