@@ -241,12 +241,13 @@
           jwt (EncryptedJWT/parse jwt)
           decrypted (try
                       (.decrypt jwt decrypter)
+                      true
                       (catch IllegalStateException e
                         nil)
                       (catch JOSEException e
                         nil))]
       (if decrypted
-        (verify-standard-claims decrypted
+        (verify-standard-claims jwt
                                 (assoc expected-claims :alg alg)
                                 curr-time)
         :decryption-failed))))
