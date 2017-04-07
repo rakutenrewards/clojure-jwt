@@ -17,8 +17,7 @@
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
    (java.io File)
    (java.net URL)
-   (java.security KeyPairGenerator SecureRandom)
-   (java.lang System)))
+   (java.security KeyPairGenerator)))
 
 (defn load-jwks-from-file
   "Load a seq of JWKs from a file."
