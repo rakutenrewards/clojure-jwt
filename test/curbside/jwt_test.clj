@@ -1,7 +1,15 @@
 (ns curbside.jwt-test
   (:require [clojure.test :refer :all]
             [clj-time.core :as t]
-            [curbside.jwt :refer :all]))
+            [curbside.jwt :refer :all]
+            [clojure.spec.test :as stest]
+            [curbside.jwt.spec :as spec]))
+
+;; enforce spec on these functions when running unit tests
+(stest/instrument `encrypt-jwt)
+(stest/instrument `decrypt-jwt)
+(stest/instrument `sign-jwt)
+(stest/instrument `unsign-jwt)
 
 (def rsa-jwk (first (rsa-jwks {:key-len 2048 :uuid? false})))
 
@@ -10,12 +18,13 @@
 (defn sign-claims
   "Sign with RSA-256 and the standard test key. For claims validation tests."
   [claims]
-  (sign-jwt :rs256 claims rsa-jwk))
+  (sign-jwt {:signing-alg :rs256 :claims claims :signing-key rsa-jwk}))
 
 (defn unsign-claims
   "Unsign with RSA-256 and the standard test key. For claims validation tests."
   [jwt claims]
-  (unsign-jwt :rs256 jwt rsa-jwk claims))
+  (unsign-jwt {:signing-alg :rs256 :serialized-jwt jwt
+               :unsigning-key rsa-jwk :expected-claims claims}))
 
 (defn sign-unsign
   [claims exp-claims]
@@ -65,8 +74,10 @@
 (deftest encrypt-decrypt
   (let [alg :rsa-oaep-256
         enc :a128gcm
-        encrypted (encrypt-jwt alg enc std-claims rsa-jwk)
-        verified (decrypt-jwt alg encrypted rsa-jwk std-claims)]
+        encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                :claims std-claims :key rsa-jwk})
+        verified (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
+                               :key rsa-jwk :expected-claims std-claims})]
     (is (map? verified) "encrypt/decrypt succeeds")))
 
 (deftest nested-roundtrip
