@@ -3,4 +3,4 @@
 
 (def uuids
   "Infinite lazy sequence of random UUIDs."
-  (map str (repeatedly #(UUID/RandomUUID))))
+  (map str (repeatedly #(UUID/randomUUID))))
