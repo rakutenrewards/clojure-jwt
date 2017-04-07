@@ -3,7 +3,8 @@
    [clj-time.coerce :as time-coerce]
    [clj-time.core :as time-core]
    [clojure.string :as str]
-   [cheshire.core :as json])
+   [cheshire.core :as json]
+   [curbside.jwt.util :as u])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
                       EncryptionMethod JWEHeader JOSEException JWEObject)
@@ -17,7 +18,6 @@
    (java.io File)
    (java.net URL)
    (java.security KeyPairGenerator SecureRandom)
-   (java.util UUID)
    (java.lang System)))
 
 (defn load-jwks-from-file
@@ -56,7 +56,7 @@
   [{uuid? :uuid?} key-pair]
   (-> (com.nimbusds.jose.jwk.RSAKey$Builder. (.getPublic key-pair))
       (.privateKey (.getPrivate key-pair))
-      ((fn [k] (if uuid? (.keyID k (.toString (UUID/randomUUID))) k)))
+      ((fn [k] (if uuid? (.keyID k (first (u/uuids))) k)))
       (.build)))
 
 (defn rsa-jwks
