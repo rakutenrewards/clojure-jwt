@@ -38,6 +38,19 @@
        (.getKeys)
        (seq)))
 
+(defn key-pairs
+  "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments
+  with required keys :instance and :key-len and returns a lazy-seq whose each
+  element is a new KeyPair."
+  ([{:keys [instance key-len] :as conf}]
+   (key-pairs
+     conf
+     (doto (KeyPairGenerator/getInstance instance)
+       (.initialize key-len))))
+  ([conf gen]
+   (lazy-seq
+     (cons (.generateKeyPair gen) (key-pairs conf gen)))))
+
 (defn gen-rsa-jwk
   "Generate a new JWK RSA keypair. key-len arg should be 2048 or larger.
    If uuid is true, assigns a UUID to the keypair.
@@ -45,9 +58,7 @@
    The returned JWK contains both the private and public keys! Use
    jwk-public-key to extract the public key. Use .toJSONString to get JSON."
   [key-len uuid?]
-  (let [key-pair-gen (KeyPairGenerator/getInstance "RSA")
-        key-pair (do (.initialize key-pair-gen key-len)
-                     (.generateKeyPair key-pair-gen))]
+  (let [key-pair (first (key-pairs {:instance "RSA" :key-len key-len}))]
     (-> (com.nimbusds.jose.jwk.RSAKey$Builder. (.getPublic key-pair))
         (.privateKey (.getPrivate key-pair))
         ((fn [k] (if uuid? (.keyID k (.toString (UUID/randomUUID))) k)))
