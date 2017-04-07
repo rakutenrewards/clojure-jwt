@@ -1,8 +1,6 @@
 (ns curbside.jwt.util
   (:import java.util.UUID))
 
-(defn uuids
-  "Returns an infinite lazy sequence of random UUIDs."
-  []
-  (lazy-seq
-    (cons (str (UUID/randomUUID)) (uuids))))
+(def uuids
+  "Infinite lazy sequence of random UUIDs."
+  (map str (repeatedly #(UUID/RandomUUID))))
