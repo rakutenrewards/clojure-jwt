@@ -10,6 +10,8 @@
 (stest/instrument `decrypt-jwt)
 (stest/instrument `sign-jwt)
 (stest/instrument `unsign-jwt)
+(stest/instrument `sign-encrypt-nested-jwt)
+(stest/instrument `decrypt-unsign-nested-jwt)
 
 (def rsa-jwk (first (rsa-jwks {:key-len 2048 :uuid? false})))
 
@@ -75,9 +77,9 @@
   (let [alg :rsa-oaep-256
         enc :a128gcm
         encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
-                                :claims std-claims :key rsa-jwk})
+                                :claims std-claims :encrypt-key rsa-jwk})
         verified (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
-                               :key rsa-jwk :expected-claims std-claims})]
+                               :decrypt-key rsa-jwk :expected-claims std-claims})]
     (is (map? verified) "encrypt/decrypt succeeds")))
 
 (deftest nested-roundtrip
@@ -85,8 +87,12 @@
         encrypt-enc :a128gcm
         sign-alg :hs256
         sign-key "this is a signing key that is sufficiently long"
-        encoded (sign-encrypt-nested-jwt sign-alg encrypt-alg encrypt-enc
-                                         std-claims sign-key rsa-jwk)
-        verified (decrypt-unsign-nested-jwt sign-alg encrypt-alg encoded
-                                            sign-key rsa-jwk std-claims)]
+        encoded (sign-encrypt-nested-jwt
+                 {:signing-alg sign-alg :encrypt-alg encrypt-alg
+                  :encrypt-enc encrypt-enc :claims std-claims
+                  :signing-key sign-key :encrypt-key rsa-jwk})
+        verified (decrypt-unsign-nested-jwt
+                   {:signing-alg sign-alg :encrypt-alg encrypt-alg
+                    :serialized-jwt encoded :unsigning-key sign-key
+                    :decrypt-key rsa-jwk :expected-claims std-claims})]
     (is (map? verified) "nested sign/encrypt followed by decrypt/unsign")))

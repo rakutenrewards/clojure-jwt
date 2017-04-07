@@ -13,7 +13,7 @@
                              RSAEncrypter AESEncrypter DirectEncrypter
                              ECDHEncrypter RSADecrypter AESDecrypter
                              DirectDecrypter ECDHDecrypter)
-   (com.nimbusds.jose.jwk JWKSet RSAKey)
+   (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
    (java.io File)
    (java.net URL)
@@ -269,8 +269,8 @@
 ))
 
 (defn encrypt-jwt
-  [{:keys [encrypt-alg encrypt-enc claims key] :as config}]
-  (let [encrypter (mk-encrypter encrypt-alg key)
+  [{:keys [encrypt-alg encrypt-enc claims encrypt-key] :as config}]
+  (let [encrypter (mk-encrypter encrypt-alg encrypt-key)
         claims-set (map->claims-set claims)
         header (mk-encrypt-header encrypt-alg encrypt-enc)
         encrypted-jwt (doto (EncryptedJWT. header claims-set)
@@ -290,9 +290,9 @@
     (ECDHDecrypter. key)))
 
 (defn decrypt-jwt
-  [{:keys [encrypt-alg serialized-jwt key expected-claims curr-time]
+  [{:keys [encrypt-alg serialized-jwt decrypt-key expected-claims curr-time]
     :or {curr-time (time-core/now)}}]
-  (let [decrypter (mk-decrypter encrypt-alg key)
+  (let [decrypter (mk-decrypter encrypt-alg decrypt-key)
         decrypted-jwt (doto (EncryptedJWT/parse serialized-jwt)
                             (.decrypt decrypter))]
     (verify-standard-claims decrypted-jwt
@@ -301,11 +301,10 @@
 
 (defn sign-encrypt-nested-jwt
   "Sign and then encrypt a nested JWT"
-  [sign-alg encrypt-alg encrypt-enc claims sign-key encrypt-key]
-; TODO: there is some duplication here with the sign and encrypt fns above
-  (let [signer (mk-signer sign-alg sign-key)
+  [{:keys [signing-alg encrypt-alg encrypt-enc claims signing-key encrypt-key]}]
+  (let [signer (mk-signer signing-alg signing-key)
         claims-set (map->claims-set claims)
-        sign-header (mk-sign-header sign-alg)
+        sign-header (mk-sign-header signing-alg)
         signed (doto (SignedJWT. sign-header claims-set)
                      (.sign signer))
         encrypt-alg-obj (mk-encrypt-alg encrypt-alg)
@@ -321,17 +320,15 @@
     (.serialize encrypted-jwe)))
 
 (defn decrypt-unsign-nested-jwt
-  ([unsign-alg decrypt-alg jwe-string unsign-key decrypt-key expected-claims]
-   (decrypt-unsign-nested-jwt unsign-alg decrypt-alg jwe-string unsign-key
-                              decrypt-key expected-claims (time-core/now)))
-  ([unsign-alg decrypt-alg jwe-string unsign-key decrypt-key expected-claims
-    curr-time]
-   (let [decrypter (mk-decrypter decrypt-alg decrypt-key)
-         decrypted-jwe (doto (com.nimbusds.jose.JWEObject/parse jwe-string)
-                             (.decrypt decrypter))
-         verifier (mk-verifier unsign-alg unsign-key)
-         verified-jwt (doto (.toSignedJWT (.getPayload decrypted-jwe))
-                            (.verify verifier))]
-     (verify-standard-claims verified-jwt
-                             (assoc expected-claims :alg unsign-alg)
-                             curr-time))))
+  [{:keys [signing-alg encrypt-alg serialized-jwt unsigning-key decrypt-key
+           expected-claims curr-time]
+    :or {curr-time (time-core/now)}}]
+  (let [decrypter (mk-decrypter encrypt-alg decrypt-key)
+        decrypted-jwe (doto (com.nimbusds.jose.JWEObject/parse serialized-jwt)
+                            (.decrypt decrypter))
+        verifier (mk-verifier signing-alg unsigning-key)
+        verified-jwt (doto (.toSignedJWT (.getPayload decrypted-jwe))
+                           (.verify verifier))]
+    (verify-standard-claims verified-jwt
+                            (assoc expected-claims :alg signing-alg)
+                            curr-time)))
