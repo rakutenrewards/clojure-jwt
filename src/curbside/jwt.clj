@@ -1,7 +1,9 @@
 (ns curbside.jwt
   (:require
+   [clj-time.coerce :as time-coerce]
+   [clj-time.core :as time-core]
    [clojure.string :as str]
-   [clojure.walk :refer [keywordize-keys]])
+   [cheshire.core :as json])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
                       EncryptionMethod JWEHeader JOSEException JWEObject)
@@ -67,11 +69,11 @@
   [claims]
   (let [defClaims {:sub (fn [x y] (.subject x y))
                    :aud (fn [x y] (.audience x y))
-                   :exp (fn [x y] (.expirationTime x y))
+                   :exp (fn [x y] (.expirationTime x (time-coerce/to-date y)))
                    :iss (fn [x y] (.issuer x y))
-                   :iat (fn [x y] (.issueTime x y))
+                   :iat (fn [x y] (.issueTime x (time-coerce/to-date y)))
                    :jti (fn [x y] (.jwtID x y))
-                   :nbf (fn [x y] (.notBeforeTime x y))}
+                   :nbf (fn [x y] (.notBeforeTime x (time-coerce/to-date y)))}
         add-claim (fn [builder k v]
                     (if (contains? defClaims k)
                       ((defClaims k) builder v)
@@ -79,16 +81,25 @@
     (.build
      (reduce-kv add-claim (new com.nimbusds.jwt.JWTClaimsSet$Builder) claims))))
 
-(defn claims-set->map
+(defn- numeric-date->date-time
+  "JWT uses NumericDate, which is seconds since the epoch. clj-time, however,
+  works in milliseconds, so to convert from a NumericDate into a Joda timestamp
+  we must first multiply by 1000."
+  [s]
+  (time-coerce/to-date-time (* s 1000)))
+
+(defn- claims-set->map
   [claims-set]
-  (->> claims-set
-       (.getClaims)
-       (into {})
-       (keywordize-keys)
-       (map (fn [[k v]] [k (if (= (type v) java.util.ArrayList)
-                               (into [] v)
-                               v)]))
-       (into {})))
+  (let [claims-map (json/decode (str claims-set) true)]
+    (reduce (fn [acc [k pred conv]]
+              (if (and (k acc) (pred (k acc)))
+                (update acc k conv)
+                acc))
+            claims-map
+            [[:aud string? vector]
+             [:exp number? numeric-date->date-time]
+             [:nbf number? numeric-date->date-time]
+             [:iat number? numeric-date->date-time]])))
 
 (defn- mk-signer
   [alg signing-key]
@@ -144,9 +155,9 @@
                         (.toString)
                         (= (str/upper-case (name alg)))))
         expired? (fn [{:keys [exp]}]
-                   (and exp (.after curr-time exp)))
+                   (and exp (time-core/after? curr-time exp)))
         too-early? (fn [{:keys [nbf]}]
-                     (and nbf (.before curr-time nbf)))
+                     (and nbf (time-core/before? curr-time nbf)))
         claims (claims-set->map (.getJWTClaimsSet jwt))]
     (cond
       (not (alg-match (:alg expected) jwt))
@@ -174,7 +185,7 @@
 
 (defn unsign-jwt
   ([alg jwt unsigning-key expected-claims]
-   (unsign-jwt alg jwt unsigning-key expected-claims (new java.util.Date)))
+   (unsign-jwt alg jwt unsigning-key expected-claims (time-core/now)))
   ([alg jwt unsigning-key expected-claims curr-time]
    (let [verifier (mk-verifier alg unsigning-key)
          parsed (SignedJWT/parse jwt)]

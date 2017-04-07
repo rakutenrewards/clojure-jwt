@@ -27,24 +27,20 @@
 
 (deftest test-nbf
   (testing "Validation of nbf (not before) claim"
-    (let [nbf-claims (assoc std-claims
-                            :nbf (.toDate (t/plus (t/now) (t/weeks 5))))
+    (let [nbf-claims (assoc std-claims :nbf (t/plus (t/now) (t/weeks 5)))
           verified (sign-unsign nbf-claims std-claims)]
-      (is (= :before-nbf verified) "current time before bnf -> failure"))
-    (let [nbf-claims (assoc std-claims
-                            :nbf (.toDate (t/minus (t/now) (t/weeks 1))))
+      (is (= :before-nbf verified) "current time before nbf -> failure"))
+    (let [nbf-claims (assoc std-claims :nbf (t/minus (t/now) (t/weeks 1)))
           verified (sign-unsign nbf-claims std-claims)]
       (is (map? verified) "nbf in the past is okay"))))
 
 (deftest test-exp
   (testing "Validation rejects expired JWTs"
-    (let [exp-claims (assoc std-claims
-                            :exp (.toDate (t/minus (t/now) (t/weeks 1))))
+    (let [exp-claims (assoc std-claims :exp (t/minus (t/now) (t/weeks 1)))
           verified (sign-unsign exp-claims std-claims)]
       (is (= :expired verified))))
   (testing "Validation accepts JWTs that have not expired"
-    (let [exp-claims (assoc std-claims
-                            :exp (.toDate (t/plus (t/now) (t/weeks 1))))
+    (let [exp-claims (assoc std-claims :exp (t/plus (t/now) (t/weeks 1)))
           verified (sign-unsign exp-claims std-claims)]
       (is (map? verified)))))
 
