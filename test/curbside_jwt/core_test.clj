@@ -72,3 +72,14 @@
         encrypted (encrypt-jwt alg enc std-claims rsa-jwk)
         verified (decrypt-jwt alg encrypted rsa-jwk std-claims)]
     (is (map? verified) "encrypt/decrypt succeeds")))
+
+(deftest nested-roundtrip
+  (let [encrypt-alg :rsa-oaep-256
+        encrypt-enc :a128gcm
+        sign-alg :hs256
+        sign-key "this is a signing key that is sufficiently long"
+        encoded (sign-encrypt-nested-jwt sign-alg encrypt-alg encrypt-enc
+                                         std-claims sign-key rsa-jwk)
+        verified (decrypt-unsign-nested-jwt sign-alg encrypt-alg encoded
+                                            sign-key rsa-jwk std-claims)]
+    (is (map? verified) "nested sign/encrypt followed by decrypt/unsign")))
