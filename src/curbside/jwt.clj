@@ -75,14 +75,16 @@
   (.toPublicJWK jwk))
 
 (defn- mk-ec-header
-  [alg ec-key-id]
-  (let [alg (case alg
-              :es256 (com.nimbusds.jose.JWSAlgorithm/ES256)
-              :es384 (com.nimbusds.jose.JWSAlgorithm/ES384)
-              :es512 (com.nimbusds.jose.JWSAlgorithm/ES512))]
-    (.build (.keyID (com.nimbusds.jose.JWSHeader$Builder. alg)))))
+  [encrypt-alg ec-key-id]
+  (-> (case encrypt-alg
+        :es256 (com.nimbusds.jose.JWSAlgorithm/ES256)
+        :es384 (com.nimbusds.jose.JWSAlgorithm/ES384)
+        :es512 (com.nimbusds.jose.JWSAlgorithm/ES512))
+      (com.nimbusds.jose.JWSHeader$Builder.)
+      (.keyID)
+      (.build)))
 
-(defn map->claims-set
+(defn- map->claims-set
   [claims]
   (let [defClaims {:sub (fn [x y] (.subject x y))
                    :aud (fn [x y] (.audience x y))
@@ -119,8 +121,8 @@
              [:iat number? numeric-date->date-time]])))
 
 (defn- mk-signer
-  [alg signing-key]
-  (case alg
+  [signing-alg signing-key]
+  (case signing-alg
     (:rs256 :rs384 :rs512)
     (RSASSASigner. signing-key)
     (:hs256 :hs384 :hs512)
@@ -129,10 +131,10 @@
     (ECDSASigner. (.getS signing-key))))
 
 (defn- mk-sign-header
-  ([alg]
-   (mk-sign-header alg nil))
-  ([alg ec-key-id]
-   (case alg
+  ([signing-alg]
+   (mk-sign-header signing-alg nil))
+  ([signing-alg ec-key-id]
+   (case signing-alg
      :rs256 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS256))
      :rs384 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS384))
      :rs512 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS512))
@@ -141,16 +143,16 @@
      :hs384 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS384))
      :hs512 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS512))
 
-     (:es256 :es384 :es512) (mk-ec-header alg ec-key-id))))
+     (:es256 :es384 :es512) (mk-ec-header signing-alg ec-key-id))))
 
 (defn sign-jwt
-  [{:keys [:signing-alg claims signing-key ec-key-id]}]
+  [{:keys [signing-alg claims signing-key ec-key-id]}]
   (let [signer (mk-signer signing-alg signing-key)
         header (mk-sign-header signing-alg ec-key-id)
-        claims (map->claims-set claims)
-        jwt (SignedJWT. header claims)]
-    (.sign jwt signer)
-    (.serialize jwt)))
+        claims-set (map->claims-set claims)
+        signed-jwt (doto (SignedJWT. header claims-set)
+                         (.sign signer))]
+    (.serialize signed-jwt)))
 
 ;TODO: is there a standard function for this? Or another way to accomplish the
 ; same with cond?
@@ -192,8 +194,8 @@
       claims)))
 
 (defn- mk-verifier
-  [alg unsigning-key]
-  (case alg
+  [signing-alg unsigning-key]
+  (case signing-alg
     (:hs256 :hs384 :hs512) (MACVerifier. unsigning-key)
     (:rs256 :rs384 :rs512) (RSASSAVerifier. unsigning-key)
     (:es256 :es384 :es512) (ECDSAVerifier. unsigning-key)))
@@ -212,8 +214,8 @@
                               curr-time))))
 
 (defn- mk-encrypt-alg
-  [alg]
-  (case alg
+  [encrypt-alg]
+  (case encrypt-alg
     :rsa1-5 (com.nimbusds.jose.JWEAlgorithm/RSA1_5)
     :rsa-oaep (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP)
     :rsa-oaep-256 (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP_256)
@@ -235,8 +237,8 @@
 ))
 
 (defn- mk-encrypt-enc
-  [enc]
-  (case enc
+  [encrypt-enc]
+  (case encrypt-enc
     :a128cbc-hs256 (com.nimbusds.jose.EncryptionMethod/A128CBC_HS256)
     :a192cbc-hs384 (com.nimbusds.jose.EncryptionMethod/A192CBC_HS384)
     :a256cbc-hs512 (com.nimbusds.jose.EncryptionMethod/A256CBC_HS512)
@@ -245,14 +247,14 @@
     :a256gcm (com.nimbusds.jose.EncryptionMethod/A256GCM)))
 
 (defn- mk-encrypt-header
-  [alg enc]
-  (let [alg (mk-encrypt-alg alg)
-        enc (mk-encrypt-enc enc)]
-    (JWEHeader. alg enc)))
+  [encrypt-alg encrypt-enc]
+  (let [alg-obj (mk-encrypt-alg encrypt-alg)
+        enc-obj (mk-encrypt-enc encrypt-enc)]
+    (JWEHeader. alg-obj enc-obj)))
 
 (defn- mk-encrypter
-  [alg key]
-  (case alg
+  [encrypt-alg key]
+  (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
     (RSAEncrypter. key)
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
@@ -269,19 +271,15 @@
 (defn encrypt-jwt
   [{:keys [encrypt-alg encrypt-enc claims key] :as config}]
   (let [encrypter (mk-encrypter encrypt-alg key)
-        claims (map->claims-set claims)
+        claims-set (map->claims-set claims)
         header (mk-encrypt-header encrypt-alg encrypt-enc)
-        encrypted-jwt (EncryptedJWT. header claims)
-        ; TODO: this encrypter only supports a few of the algs above!
-        ; need another case statement
-]
-    ;TODO: for debugging, try serializing before encrypting to see the JSON
-    (.encrypt encrypted-jwt encrypter)
+        encrypted-jwt (doto (EncryptedJWT. header claims-set)
+                            (.encrypt encrypter))]
     (.serialize encrypted-jwt)))
 
 (defn- mk-decrypter
-  [alg key]
-  (case alg
+  [encrypt-alg key]
+  (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
     (RSADecrypter. key)
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
@@ -295,19 +293,11 @@
   [{:keys [encrypt-alg serialized-jwt key expected-claims curr-time]
     :or {curr-time (time-core/now)}}]
   (let [decrypter (mk-decrypter encrypt-alg key)
-        jwt (EncryptedJWT/parse serialized-jwt)
-        decrypted (try
-                    (.decrypt jwt decrypter)
-                    true
-                    (catch IllegalStateException e
-                      nil)
-                    (catch JOSEException e
-                      nil))]
-    (if decrypted
-      (verify-standard-claims jwt
-                              (assoc expected-claims :alg encrypt-alg)
-                              curr-time)
-      :decryption-failed)))
+        decrypted-jwt (doto (EncryptedJWT/parse serialized-jwt)
+                            (.decrypt decrypter))]
+    (verify-standard-claims decrypted-jwt
+                            (assoc expected-claims :alg encrypt-alg)
+                            curr-time)))
 
 (defn sign-encrypt-nested-jwt
   "Sign and then encrypt a nested JWT"
@@ -316,19 +306,18 @@
   (let [signer (mk-signer sign-alg sign-key)
         claims-set (map->claims-set claims)
         sign-header (mk-sign-header sign-alg)
-        signed (SignedJWT. sign-header claims-set)
+        signed (doto (SignedJWT. sign-header claims-set)
+                     (.sign signer))
         encrypt-alg-obj (mk-encrypt-alg encrypt-alg)
         encrypt-enc-obj (mk-encrypt-enc encrypt-enc)
         encrypt-header (-> (com.nimbusds.jose.JWEHeader$Builder.
                             encrypt-alg-obj encrypt-enc-obj)
                            (.contentType "JWT")
                            (.build))
-        payload (do
-                  (.sign signed signer)
-                  (Payload. signed))
+        payload (Payload. signed)
         encrypter (mk-encrypter encrypt-alg encrypt-key)
-        encrypted-jwe (JWEObject. encrypt-header payload)]
-    (.encrypt encrypted-jwe encrypter)
+        encrypted-jwe (doto (JWEObject. encrypt-header payload)
+                            (.encrypt encrypter))]
     (.serialize encrypted-jwe)))
 
 (defn decrypt-unsign-nested-jwt
@@ -337,13 +326,12 @@
                               decrypt-key expected-claims (time-core/now)))
   ([unsign-alg decrypt-alg jwe-string unsign-key decrypt-key expected-claims
     curr-time]
-   (let [jwe-obj (com.nimbusds.jose.JWEObject/parse jwe-string)
-         decrypter (mk-decrypter decrypt-alg decrypt-key)
-         signed-jwt (do
-                      (.decrypt jwe-obj decrypter)
-                      (.toSignedJWT (.getPayload jwe-obj)))
-         verifier (mk-verifier unsign-alg unsign-key)]
-     (.verify signed-jwt verifier)
-     (verify-standard-claims signed-jwt
+   (let [decrypter (mk-decrypter decrypt-alg decrypt-key)
+         decrypted-jwe (doto (com.nimbusds.jose.JWEObject/parse jwe-string)
+                             (.decrypt decrypter))
+         verifier (mk-verifier unsign-alg unsign-key)
+         verified-jwt (doto (.toSignedJWT (.getPayload decrypted-jwe))
+                            (.verify verifier))]
+     (verify-standard-claims verified-jwt
                              (assoc expected-claims :alg unsign-alg)
                              curr-time))))
