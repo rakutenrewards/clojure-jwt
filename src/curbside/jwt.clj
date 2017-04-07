@@ -280,7 +280,7 @@
 
 (defn decrypt-jwt
   ([alg jwt key expected-claims]
-    (decrypt-jwt alg jwt key expected-claims (new java.util.Date)))
+    (decrypt-jwt alg jwt key expected-claims (time-core/now)))
   ([alg jwt key expected-claims curr-time]
     (let [decrypter (mk-decrypter alg key)
           jwt (EncryptedJWT/parse jwt)
@@ -322,7 +322,7 @@
 (defn decrypt-unsign-nested-jwt
   ([unsign-alg decrypt-alg jwe-string unsign-key decrypt-key expected-claims]
    (decrypt-unsign-nested-jwt unsign-alg decrypt-alg jwe-string unsign-key
-                              decrypt-key expected-claims (new java.util.Date)))
+                              decrypt-key expected-claims (time-core/now)))
   ([unsign-alg decrypt-alg jwe-string unsign-key decrypt-key expected-claims
     curr-time]
    (let [jwe-obj (com.nimbusds.jose.JWEObject/parse jwe-string)
