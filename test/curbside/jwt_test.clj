@@ -3,7 +3,7 @@
             [clj-time.core :as t]
             [curbside.jwt :refer :all]))
 
-(def rsa-jwk (gen-rsa-jwk 2048 false))
+(def rsa-jwk (first (rsa-jwks {:key-len 2048 :uuid? false})))
 
 (def std-claims {:iss "curbside.com" :aud "curbside.com" :sub "jim"})
 

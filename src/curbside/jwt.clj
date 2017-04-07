@@ -51,18 +51,25 @@
    (lazy-seq
      (cons (.generateKeyPair gen) (key-pairs conf gen)))))
 
-(defn gen-rsa-jwk
-  "Generate a new JWK RSA keypair. key-len arg should be 2048 or larger.
-   If uuid is true, assigns a UUID to the keypair.
-   See https://en.wikipedia.org/wiki/Key_size#Asymmetric_algorithm_key_lengths
-   The returned JWK contains both the private and public keys! Use
-   jwk-public-key to extract the public key. Use .toJSONString to get JSON."
-  [key-len uuid?]
-  (let [key-pair (first (key-pairs {:instance "RSA" :key-len key-len}))]
-    (-> (com.nimbusds.jose.jwk.RSAKey$Builder. (.getPublic key-pair))
-        (.privateKey (.getPrivate key-pair))
-        ((fn [k] (if uuid? (.keyID k (.toString (UUID/randomUUID))) k)))
-        (.build))))
+(defn rsa-keypair->jwk
+  "Create a JWK from an RSA KeyPair."
+  [{uuid? :uuid?} key-pair]
+  (-> (com.nimbusds.jose.jwk.RSAKey$Builder. (.getPublic key-pair))
+      (.privateKey (.getPrivate key-pair))
+      ((fn [k] (if uuid? (.keyID k (.toString (UUID/randomUUID))) k)))
+      (.build)))
+
+(defn rsa-jwks
+  "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
+  - :key-len - should be 2048 or larger.
+  - :uuid? - if true, assigns a random UUID as the Key ID of each key pair
+
+  See https://en.wikipedia.org/wiki/Key_size#Asymmetric_algorithm_key_lengths
+  The returned JWK contains both the private and public keys! Use
+  jwk-public-key to extract the public key. Use .toJSONString to get JSON."
+  [config]
+  (->> (key-pairs {:instance "RSA" :key-len (:key-len config)})
+       (map (partial rsa-keypair->jwk config))))
 
 (defn jwk-public-key
   [jwk]
