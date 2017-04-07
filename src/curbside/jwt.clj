@@ -39,12 +39,12 @@
 
 (defn key-pairs
   "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments
-  with required keys :instance and :key-len and returns a lazy-seq whose each
+  with required keys :algorithm and :key-len and returns a lazy-seq whose each
   element is a new KeyPair."
-  ([{:keys [instance key-len] :as conf}]
+  ([{:keys [algorithm key-len] :as conf}]
    (key-pairs
      conf
-     (doto (KeyPairGenerator/getInstance instance)
+     (doto (KeyPairGenerator/getInstance algorithm)
        (.initialize key-len))))
   ([conf gen]
    (lazy-seq
@@ -67,7 +67,7 @@
   The returned JWK contains both the private and public keys! Use
   jwk-public-key to extract the public key. Use .toJSONString to get JSON."
   [config]
-  (->> (key-pairs {:instance "RSA" :key-len (:key-len config)})
+  (->> (key-pairs {:algorithm "RSA" :key-len (:key-len config)})
        (map (partial rsa-keypair->jwk config))))
 
 (defn jwk-public-key
