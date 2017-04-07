@@ -1,4 +1,4 @@
-(ns curbside-jwt.core
+(ns curbside.jwt
   (:require
    [clojure.string :as str]
    [clojure.walk :refer [keywordize-keys]])

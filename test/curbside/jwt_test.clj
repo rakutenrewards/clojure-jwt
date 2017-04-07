@@ -1,7 +1,7 @@
-(ns curbside-jwt.core-test
+(ns curbside.jwt-test
   (:require [clojure.test :refer :all]
             [clj-time.core :as t]
-            [curbside-jwt.core :refer :all]))
+            [curbside.jwt :refer :all]))
 
 (def rsa-jwk (gen-rsa-jwk 2048 false))
 
