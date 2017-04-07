@@ -3,5 +3,6 @@
   :url "http://example.com/FIXME"
   :dependencies [[org.clojure/clojure "1.9.0-alpha15"]
                  [clj-time "0.13.0"]
-                 [com.nimbusds/nimbus-jose-jwt "4.34.2"]]
+                 [com.nimbusds/nimbus-jose-jwt "4.34.2"]
+                 [cheshire "5.7.0"]]
   :plugins [[lein-cljfmt "0.5.6"]])
