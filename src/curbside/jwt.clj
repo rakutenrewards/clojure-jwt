@@ -24,7 +24,7 @@
   "Load a seq of JWKs from a file."
   [path]
   (->> path
-       (new File)
+       (File.)
        (.load JWKSet)
        (.getKeys)
        (seq)))
@@ -33,7 +33,7 @@
   "Load a seq of JWKs from a URL."
   [url]
   (->> url
-       (new URL)
+       (URL.)
        (.load JWKSet)
        (.getKeys)
        (seq)))
@@ -48,7 +48,7 @@
   (let [key-pair-gen (KeyPairGenerator/getInstance "RSA")
         key-pair (do (.initialize key-pair-gen key-len)
                      (.generateKeyPair key-pair-gen))]
-    (-> (new com.nimbusds.jose.jwk.RSAKey$Builder (.getPublic key-pair))
+    (-> (com.nimbusds.jose.jwk.RSAKey$Builder. (.getPublic key-pair))
         (.privateKey (.getPrivate key-pair))
         ((fn [k] (if uuid? (.keyID k (.toString (UUID/randomUUID))) k)))
         (.build))))
@@ -63,7 +63,7 @@
                :es256 (com.nimbusds.jose.JWSAlgorithm/ES256)
                :es384 (com.nimbusds.jose.JWSAlgorithm/ES384)
                :es512 (com.nimbusds.jose.JWSAlgorithm/ES512))]
-    (.build (.keyID (new com.nimbusds.jose.JWSHeader$Builder alg)))))
+    (.build (.keyID (com.nimbusds.jose.JWSHeader$Builder. alg)))))
 
 (defn map->claims-set
   [claims]
@@ -79,7 +79,7 @@
                       ((defClaims k) builder v)
                       (.claim builder (name k) v)))]
     (.build
-     (reduce-kv add-claim (new com.nimbusds.jwt.JWTClaimsSet$Builder) claims))))
+     (reduce-kv add-claim (com.nimbusds.jwt.JWTClaimsSet$Builder.) claims))))
 
 (defn- numeric-date->date-time
   "JWT uses NumericDate, which is seconds since the epoch. clj-time, however,
@@ -105,24 +105,24 @@
   [alg signing-key]
   (case alg
     (:rs256 :rs384 :rs512)
-    (new RSASSASigner signing-key)
+    (RSASSASigner. signing-key)
     (:hs256 :hs384 :hs512)
-    (new MACSigner signing-key)
+    (MACSigner. signing-key)
     (:ec256 :ec384 :ec512)
-    (new ECDSASigner (.getS signing-key))))
+    (ECDSASigner. (.getS signing-key))))
 
 (defn- mk-sign-header
   ([alg]
    (mk-sign-header alg nil))
   ([alg ec-key-id]
    (case alg
-     :rs256 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/RS256))
-     :rs384 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/RS384))
-     :rs512 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/RS512))
+     :rs256 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS256))
+     :rs384 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS384))
+     :rs512 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS512))
 
-     :hs256 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS256))
-     :hs384 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS384))
-     :hs512 (new JWSHeader (com.nimbusds.jose.JWSAlgorithm/HS512))
+     :hs256 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS256))
+     :hs384 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS384))
+     :hs512 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS512))
 
      (:es256 :es384 :es512) (mk-ec-header alg ec-key-id))))
 
@@ -133,7 +133,7 @@
    (let [signer (mk-signer alg signing-key)
          header (mk-sign-header alg)
          claims (map->claims-set claims)
-         jwt (new SignedJWT header claims)]
+         jwt (SignedJWT. header claims)]
      (.sign jwt signer)
      (.serialize jwt))))
 
@@ -179,9 +179,9 @@
 (defn- mk-verifier
   [alg unsigning-key]
   (case alg
-    (:hs256 :hs384 :hs512) (new MACVerifier unsigning-key)
-    (:rs256 :rs384 :rs512) (new RSASSAVerifier unsigning-key)
-    (:es256 :es384 :es512) (new ECDSAVerifier unsigning-key)))
+    (:hs256 :hs384 :hs512) (MACVerifier. unsigning-key)
+    (:rs256 :rs384 :rs512) (RSASSAVerifier. unsigning-key)
+    (:es256 :es384 :es512) (ECDSAVerifier. unsigning-key)))
 
 (defn unsign-jwt
   ([alg jwt unsigning-key expected-claims]
@@ -234,23 +234,23 @@
   [alg enc]
   (let [alg (mk-encrypt-alg alg)
         enc (mk-encrypt-enc enc)]
-    (new JWEHeader alg enc)))
+    (JWEHeader. alg enc)))
 
 (defn- mk-encrypter
   [alg key]
   (println "###" key)
   (case alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (new RSAEncrypter key)
+    (RSAEncrypter. key)
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (new AESEncrypter key)
+    (AESEncrypter. key)
     :dir
-    (new DirectEncrypter key)
+    (DirectEncrypter. key)
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (new ECDHEncrypter key)
+    (ECDHEncrypter. key)
     ;TODO password-based encryption.
     ;;(:pbes2-hs256-a128kw :pbes2-hs384-a192kw :pbes2-hs512-a256kw)
-    ;;(new PasswordBasedEncrypter key salt-len num-iters)
+    ;;(PasswordBasedEncrypter. key salt-len num-iters)
     ))
 
 (defn encrypt-jwt
@@ -258,7 +258,7 @@
   (let [encrypter (mk-encrypter alg key)
         claims (map->claims-set claims)
         header (mk-encrypt-header alg enc)
-        encrypted-jwt (new EncryptedJWT header claims)
+        encrypted-jwt (EncryptedJWT. header claims)
         ; TODO: this encrypter only supports a few of the algs above!
         ; need another case statement
         ]
@@ -270,13 +270,13 @@
   [alg key]
   (case alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (new RSADecrypter key)
+    (RSADecrypter. key)
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (new AESDecrypter key)
+    (AESDecrypter. key)
     :dir
-    (new DirectDecrypter key)
+    (DirectDecrypter. key)
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (new ECDHDecrypter key)))
+    (ECDHDecrypter. key)))
 
 (defn decrypt-jwt
   ([alg jwt key expected-claims]
@@ -304,18 +304,18 @@
   (let [signer (mk-signer sign-alg sign-key)
         claims-set (map->claims-set claims)
         sign-header (mk-sign-header sign-alg)
-        signed (new SignedJWT sign-header claims-set)
+        signed (SignedJWT. sign-header claims-set)
         encrypt-alg-obj (mk-encrypt-alg encrypt-alg)
         encrypt-enc-obj (mk-encrypt-enc encrypt-enc)
-        encrypt-header (-> (new com.nimbusds.jose.JWEHeader$Builder
+        encrypt-header (-> (com.nimbusds.jose.JWEHeader$Builder.
                              encrypt-alg-obj encrypt-enc-obj)
                            (.contentType "JWT")
                            (.build))
         payload (do
                   (.sign signed signer)
-                  (new Payload signed))
+                  (Payload. signed))
         encrypter (mk-encrypter encrypt-alg encrypt-key)
-        encrypted-jwe (new JWEObject encrypt-header payload)]
+        encrypted-jwe (JWEObject. encrypt-header payload)]
     (.encrypt encrypted-jwe encrypter)
     (.serialize encrypted-jwe)))
 
