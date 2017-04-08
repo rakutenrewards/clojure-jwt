@@ -96,3 +96,8 @@
                     :serialized-jwt encoded :unsigning-key sign-key
                     :decrypt-key rsa-jwk :expected-claims std-claims})]
     (is (map? verified) "nested sign/encrypt followed by decrypt/unsign")))
+
+
+;; property-based tests
+(deftest prop-encrypt-jwt
+  (stest/check `encrypt-jwt))

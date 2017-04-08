@@ -55,7 +55,7 @@
   [{uuid? :uuid?} key-pair]
   (-> (com.nimbusds.jose.jwk.RSAKey$Builder. (.getPublic key-pair))
       (.privateKey (.getPrivate key-pair))
-      ((fn [k] (if uuid? (.keyID k (first (u/uuids))) k)))
+      ((fn [k] (if uuid? (.keyID k (first u/uuids)) k)))
       (.build)))
 
 (defn rsa-jwks

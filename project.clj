@@ -5,4 +5,5 @@
                  [clj-time "0.13.0"]
                  [com.nimbusds/nimbus-jose-jwt "4.34.2"]
                  [cheshire "5.7.0"]]
-  :plugins [[lein-cljfmt "0.5.6"]])
+  :plugins [[lein-cljfmt "0.5.6"]]
+  :profiles {:dev {:dependencies [[org.clojure/test.check "0.9.0"]]}})

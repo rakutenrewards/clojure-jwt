@@ -1,6 +1,7 @@
 (ns curbside.jwt.spec
   (:require
    [clojure.spec :as s]
+   [clojure.spec.gen :as g]
    [curbside.jwt :as jwt]
    [clj-time.core :as t])
   (:import
@@ -35,8 +36,33 @@
 
 (s/def ::decrypt-key key-spec)
 
+(defn gen-encrypt-key
+  [encrypt-alg]
+  ;TODO: implement non-rsa test cases!
+  (case encrypt-alg
+    (:rsa1-5 :rsa-oaep :rsa-oaep-256)
+    (g/return (first (jwt/rsa-jwks {:key-len 2048 :uuid? true})))
+    (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
+    (throw :aes-key-gen-not-impl)
+    :dir
+    (throw :dir-key-gen-not-impl)
+    (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
+    (throw :ecdh-key-gen-not-impl)))
+
+(defn gen-encrypt-jwt-config
+  []
+  ;TODO: generate non-rsa test cases!
+  (g/bind (s/gen #{:rsa1-5 :rsa-oaep :rsa-oaep-256})
+    (fn [encrypt-alg]
+      (g/hash-map :encrypt-alg (g/return encrypt-alg)
+                  :encrypt-enc (s/gen ::encrypt-enc)
+                  :claims (g/return {:iss "foo" :aud "foo"})
+                  :encrypt-key (gen-encrypt-key encrypt-alg)))))
+
 (s/def ::encrypt-jwt-config
-  (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key]))
+  (s/with-gen
+    (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key])
+    gen-encrypt-jwt-config))
 
 (s/def ::decrypt-jwt-config
   (s/keys :req-un [::encrypt-alg ::serialized-jwt ::expected-claims
