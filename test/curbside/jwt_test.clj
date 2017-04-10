@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [clj-time.core :as t]
             [curbside.jwt :refer :all]
+            [curbside.jwt.keys :as keys]
             [clojure.spec.test :as stest]
             [curbside.jwt.spec :as spec]))
 
@@ -13,7 +14,7 @@
 (stest/instrument `sign-encrypt-nested-jwt)
 (stest/instrument `decrypt-unsign-nested-jwt)
 
-(def rsa-jwk (first (rsa-jwks {:key-len 2048 :uuid? false})))
+(def rsa-jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? false})))
 
 (def std-claims {:iss "curbside.com" :aud "curbside.com" :sub "jim"})
 

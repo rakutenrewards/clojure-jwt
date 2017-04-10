@@ -3,6 +3,7 @@
    [clojure.spec :as s]
    [clojure.spec.gen :as g]
    [curbside.jwt :as jwt]
+   [curbside.jwt.keys :as keys]
    [clj-time.core :as t])
   (:import
    (org.joda.time DateTime)
@@ -41,13 +42,13 @@
   ;TODO: implement non-rsa test cases!
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (g/return (first (jwt/rsa-jwks {:key-len 2048 :uuid? true})))
+    (g/return (first (keys/rsa-jwks {:key-len 2048 :uuid? true})))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (throw :aes-key-gen-not-impl)
+    (throw (ex-info "AES keygen not yet implemented." {:alg encrypt-alg}))
     :dir
-    (throw :dir-key-gen-not-impl)
+    (throw (ex-info "DIR keygen not yet implemented." {:alg encrypt-alg}))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (throw :ecdh-key-gen-not-impl)))
+    (throw (ex-info "ECDH keygen not yet implemented." {:alg encrypt-alg}))))
 
 (defn gen-encrypt-jwt-config
   []
