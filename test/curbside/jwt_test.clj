@@ -40,7 +40,7 @@
   (testing "Validation of nbf (not before) claim"
     (let [nbf-claims (assoc std-claims :nbf (t/plus (t/now) (t/weeks 5)))
           verify (fn [] (sign-unsign nbf-claims std-claims))]
-      (is (thrown-with-msg? Exception #"not valid until" (verify))
+      (is (thrown-with-msg? Exception #"not valid yet" (verify))
           "current time before nbf -> failure"))
     (let [nbf-claims (assoc std-claims :nbf (t/minus (t/now) (t/weeks 1)))
           verify (fn [] (sign-unsign nbf-claims std-claims))]
@@ -50,7 +50,7 @@
   (testing "Validation rejects expired JWTs"
     (let [exp-claims (assoc std-claims :exp (t/minus (t/now) (t/weeks 1)))
           verify (fn [] (sign-unsign exp-claims std-claims))]
-      (is (thrown-with-msg? Exception #"JWT expired at" (verify)))))
+      (is (thrown-with-msg? Exception #"JWT expired" (verify)))))
   (testing "Validation accepts JWTs that have not expired"
     (let [exp-claims (assoc std-claims :exp (t/plus (t/now) (t/weeks 1)))
           verify (fn [] (sign-unsign exp-claims std-claims))]

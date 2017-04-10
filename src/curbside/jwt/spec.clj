@@ -43,11 +43,11 @@
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
     (g/return (first (jwt/rsa-jwks {:key-len 2048 :uuid? true})))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (throw (Exception. "AES keygen not yet implemented."))
+    (throw (ex-info "AES keygen not yet implemented." {:alg encrypt-alg}))
     :dir
-    (throw (Exception. "DIR keygen not yet implemented."))
+    (throw (ex-info "DIR keygen not yet implemented." {:alg encrypt-alg}))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (throw (Exception. "ECDH keygen not yet implemented."))))
+    (throw (ex-info "ECDH keygen not yet implemented." {:alg encrypt-alg}))))
 
 (defn gen-encrypt-jwt-config
   []
