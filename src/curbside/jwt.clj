@@ -154,13 +154,6 @@
                          (.sign signer))]
     (.serialize signed-jwt)))
 
-;TODO: is there a standard function for this? Or another way to accomplish the
-; same with cond?
-(defn- implies
-  "Material implication."
-  [p q]
-  (or (not p) q))
-
 (defn verify-standard-claims
   "Verify standard claims contained in a JWT. Returns the claims set as a map if
    verified successfully. Returns a symbol indicating an error otherwise."
@@ -180,13 +173,13 @@
       (not (alg-match (:alg expected) jwt))
       (throw (ex-info "'alg' field doesn't match."
                      {:actual (:alg claims) :expected alg}))
-      (implies iss (not= (:iss claims) iss))
+      (and iss (not= (:iss claims) iss))
       (throw (ex-info "'iss' field doesn't match."
                       {:actual (:iss claims) :expected iss}))
-      (implies sub (not= (:sub claims) sub))
+      (and sub (not= (:sub claims) sub))
       (throw (ex-info "'sub' field doesn't match."
                          {:actual (:sub claims) :expected sub}))
-      (implies aud (not (some #(= % aud) (:aud claims))))
+      (and aud (not (some #(= % aud) (:aud claims))))
       (throw (ex-info "'aud' field doesn't match. Got: "
                          {:actual (:aud claims) :expected aud}))
       (expired? claims)
