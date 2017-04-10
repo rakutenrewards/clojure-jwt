@@ -178,17 +178,21 @@
         claims (claims-set->map (.getJWTClaimsSet jwt))]
     (cond
       (not (alg-match (:alg expected) jwt))
-      :alg-mismatch
+      (throw (ex-info "'alg' field doesn't match."
+                     {:actual (:alg claims) :expected alg}))
       (implies iss (not= (:iss claims) iss))
-      :iss-mismatch
-      (implies iss (not= (:sub claims) sub))
-      :sub-mismatch
+      (throw (ex-info "'iss' field doesn't match."
+                      {:actual (:iss claims) :expected iss}))
+      (implies sub (not= (:sub claims) sub))
+      (throw (ex-info "'sub' field doesn't match."
+                         {:actual (:sub claims) :expected sub}))
       (implies aud (not (some #(= % aud) (:aud claims))))
-      :aud-mismatch
+      (throw (ex-info "'aud' field doesn't match. Got: "
+                         {:actual (:aud claims) :expected aud}))
       (expired? claims)
-      :expired
+      (throw (ex-info "JWT expired." {:exp (:exp claims)}))
       (too-early? claims)
-      :before-nbf
+      (throw (ex-info "JWT not valid yet." {:nbf (:nbf claims)}))
 
       :else
       claims)))
