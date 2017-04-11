@@ -11,21 +11,6 @@
    (java.security KeyPairGenerator SecureRandom)
    (java.lang.Object)))
 
-(defprotocol IJWK
-  "A protocol representing a single JWK, used to sign, unsign, encrypt, or
-   decrypt JWTs, depending on the type of key contained in the JWK."
-  (get-internal [jwk]
-   "Gets the internal Java representation of the key.")
-  (to-map [jwk]
-    "Returns the JWK as a Clojure map. Use this to get access to keys like
-     'kid', 'kty', etc.")
-  (private? [jwk]
-    "Returns true if the key is or contains a private key.")
-  (to-public [jwk]
-    "Returns a new JWK containing only non-private information.")
-  (to-json [jwk]
-    "Converts the JWK to a JSON string."))
-
 (defprotocol IOpaque
   (reveal [x]
     "Extracts the opacified data."))
@@ -37,6 +22,17 @@
     (reveal [this] x)
     Object
     (toString [this] "Opaque object")))
+
+(defn opaque-map->json-jwk
+  "Converts a map with some opaque fields, such as produced by our key
+   generation functions, into a JSON string in JWK format."
+  [mp]
+  (let [uncensored (map-kv (fn [k v]
+                             (if (satisfies? IOpaque v)
+                               [k (reveal v)]
+                               [k v]))
+                           mp)]
+    (json/encode uncensored)))
 
 (defn JWK->map
   "Convert a JWK Nimbus object to a map, keeping the private data within the
@@ -61,12 +57,7 @@
 
 (defn map->JWK
   [mp]
-  (let [uncensored (map-kv (fn [k v]
-                             (if (satisfies? IOpaque v)
-                                 [k (reveal v)]
-                                 [k v]))
-                           mp)
-        as-json (json/encode uncensored)]
+  (let [as-json (opaque-map->json-jwk mp)]
     (JWK/parse as-json)))
 
 (defn load-jwks-from-file
