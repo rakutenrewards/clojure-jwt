@@ -324,8 +324,9 @@
         decrypted-jwe (doto (com.nimbusds.jose.JWEObject/parse serialized-jwt)
                             (.decrypt decrypter))
         verifier (mk-verifier signing-alg unsigning-key)
-        verified-jwt (doto (.toSignedJWT (.getPayload decrypted-jwe))
-                           (.verify verifier))]
-    (verify-standard-claims verified-jwt
-                            (assoc expected-claims :alg signing-alg)
-                            curr-time)))
+        signed-jwt (.toSignedJWT (.getPayload decrypted-jwe))]
+    (if (.verify signed-jwt verifier)
+      (verify-standard-claims signed-jwt
+                              (assoc expected-claims :alg signing-alg)
+                              curr-time)
+      (throw (ex-info "Signing verification failed." {})))))
