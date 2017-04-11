@@ -87,7 +87,7 @@
   (let [encrypt-alg :rsa-oaep-256
         encrypt-enc :a128gcm
         sign-alg :hs256
-        sign-key "this is a signing key that is sufficiently long"
+        sign-key (keys/symmetric-key {:key-len 256 :uuid? false :alg :hs256})
         encoded (sign-encrypt-nested-jwt
                  {:signing-alg sign-alg :encrypt-alg encrypt-alg
                   :encrypt-enc encrypt-enc :claims std-claims

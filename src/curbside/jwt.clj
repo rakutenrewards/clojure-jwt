@@ -3,7 +3,9 @@
    [clj-time.coerce :as time-coerce]
    [clj-time.core :as time-core]
    [clojure.string :as str]
-   [cheshire.core :as json])
+   [cheshire.core :as json]
+   [curbside.jwt.keys :as k]
+   [curbside.jwt.util :as u])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
                       EncryptionMethod JWEHeader JOSEException JWEObject)
@@ -14,16 +16,6 @@
                              DirectDecrypter ECDHDecrypter)
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)))
-
-(defn- mk-ec-header
-  [encrypt-alg ec-key-id]
-  (-> (case encrypt-alg
-        :es256 (com.nimbusds.jose.JWSAlgorithm/ES256)
-        :es384 (com.nimbusds.jose.JWSAlgorithm/ES384)
-        :es512 (com.nimbusds.jose.JWSAlgorithm/ES512))
-      (com.nimbusds.jose.JWSHeader$Builder.)
-      (.keyID)
-      (.build)))
 
 (defn- map->claims-set
   [claims]
@@ -65,31 +57,17 @@
   [signing-alg signing-key]
   (case signing-alg
     (:rs256 :rs384 :rs512)
-    (RSASSASigner. signing-key)
+    (RSASSASigner. (k/get-internal signing-key))
     (:hs256 :hs384 :hs512)
-    (MACSigner. signing-key)
+    (MACSigner. (k/get-internal signing-key))
     (:ec256 :ec384 :ec512)
-    (ECDSASigner. (.getS signing-key))))
+    (ECDSASigner. (.getS (k/get-internal signing-key)))))
 
-(defn- mk-sign-header
-  ([signing-alg]
-   (mk-sign-header signing-alg nil))
-  ([signing-alg ec-key-id]
-   (case signing-alg
-     :rs256 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS256))
-     :rs384 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS384))
-     :rs512 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/RS512))
-
-     :hs256 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS256))
-     :hs384 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS384))
-     :hs512 (JWSHeader. (com.nimbusds.jose.JWSAlgorithm/HS512))
-
-     (:es256 :es384 :es512) (mk-ec-header signing-alg ec-key-id))))
 
 (defn sign-jwt
   [{:keys [signing-alg claims signing-key ec-key-id]}]
   (let [signer (mk-signer signing-alg signing-key)
-        header (mk-sign-header signing-alg ec-key-id)
+        header (u/mk-sign-header signing-alg ec-key-id)
         claims-set (map->claims-set claims)
         signed-jwt (doto (SignedJWT. header claims-set)
                          (.sign signer))]
@@ -137,9 +115,9 @@
 (defn- mk-verifier
   [signing-alg unsigning-key]
   (case signing-alg
-    (:hs256 :hs384 :hs512) (MACVerifier. unsigning-key)
-    (:rs256 :rs384 :rs512) (RSASSAVerifier. unsigning-key)
-    (:es256 :es384 :es512) (ECDSAVerifier. unsigning-key)))
+    (:hs256 :hs384 :hs512) (MACVerifier. (k/get-internal unsigning-key))
+    (:rs256 :rs384 :rs512) (RSASSAVerifier. (k/get-internal unsigning-key))
+    (:es256 :es384 :es512) (ECDSAVerifier. (k/get-internal unsigning-key))))
 
 (defn unsign-jwt
   [{:keys [signing-alg serialized-jwt unsigning-key expected-claims
@@ -154,66 +132,27 @@
                               (assoc expected-claims :alg signing-alg)
                               curr-time))))
 
-(defn- mk-encrypt-alg
-  [encrypt-alg]
-  (case encrypt-alg
-    :rsa1-5 (com.nimbusds.jose.JWEAlgorithm/RSA1_5)
-    :rsa-oaep (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP)
-    :rsa-oaep-256 (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP_256)
-    :a128kw (com.nimbusds.jose.JWEAlgorithm/A128KW)
-    :a192kw (com.nimbusds.jose.JWEAlgorithm/A192KW)
-    :a256kw (com.nimbusds.jose.JWEAlgorithm/A256KW)
-    :dir (com.nimbusds.jose.JWEAlgorithm/DIR)
-    :ecdh-es (com.nimbusds.jose.JWEAlgorithm/ECDH_ES)
-    :ecdh-es-a128kw (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A128KW)
-    :ecdh-es-a192kw (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A192KW)
-    :ecdh-es-a256kw (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A256KW)
-    :a128gcmkw (com.nimbusds.jose.JWEAlgorithm/A128GCMKW)
-    :a192gcmkw (com.nimbusds.jose.JWEAlgorithm/A192GCMKW)
-    :a256gcmkw (com.nimbusds.jose.JWEAlgorithm/A256GCMKW)
-    ;TODO: password-based encrypter support. Needs extra params.
-    ;;:pbes2-hs256-a128kw (com.nimbusds.jose.JWEAlgorithm/PBES2_HS256_A128KW)
-    ;;:pbes2-hs384-a192kw (com.nimbusds.jose.JWEAlgorithm/PBES2_HS384_A192KW)
-    ;;:pbes2-hs512-a256kw (com.nimbusds.jose.JWEAlgorithm/PBES2_HS512_A256KW)
-))
-
-(defn- mk-encrypt-enc
-  [encrypt-enc]
-  (case encrypt-enc
-    :a128cbc-hs256 (com.nimbusds.jose.EncryptionMethod/A128CBC_HS256)
-    :a192cbc-hs384 (com.nimbusds.jose.EncryptionMethod/A192CBC_HS384)
-    :a256cbc-hs512 (com.nimbusds.jose.EncryptionMethod/A256CBC_HS512)
-    :a128gcm (com.nimbusds.jose.EncryptionMethod/A128GCM)
-    :a192gcm (com.nimbusds.jose.EncryptionMethod/A192GCM)
-    :a256gcm (com.nimbusds.jose.EncryptionMethod/A256GCM)))
-
-(defn- mk-encrypt-header
-  [encrypt-alg encrypt-enc]
-  (let [alg-obj (mk-encrypt-alg encrypt-alg)
-        enc-obj (mk-encrypt-enc encrypt-enc)]
-    (JWEHeader. alg-obj enc-obj)))
-
 (defn- mk-encrypter
   [encrypt-alg key]
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (RSAEncrypter. key)
+    (RSAEncrypter. (k/get-internal key))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (AESEncrypter. key)
+    (AESEncrypter. (k/get-internal key))
     :dir
-    (DirectEncrypter. key)
+    (DirectEncrypter. (k/get-internal key))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (ECDHEncrypter. key)
+    (ECDHEncrypter. (k/get-internal key))
     ;TODO password-based encryption.
     ;;(:pbes2-hs256-a128kw :pbes2-hs384-a192kw :pbes2-hs512-a256kw)
-    ;;(PasswordBasedEncrypter. key salt-len num-iters)
-))
+    ;;(PasswordBasedEncrypter. (k/get-internal key) salt-len num-iters)
+    ))
 
 (defn encrypt-jwt
   [{:keys [encrypt-alg encrypt-enc claims encrypt-key] :as config}]
   (let [encrypter (mk-encrypter encrypt-alg encrypt-key)
         claims-set (map->claims-set claims)
-        header (mk-encrypt-header encrypt-alg encrypt-enc)
+        header (u/mk-encrypt-header encrypt-alg encrypt-enc)
         encrypted-jwt (doto (EncryptedJWT. header claims-set)
                             (.encrypt encrypter))]
     (.serialize encrypted-jwt)))
@@ -222,13 +161,13 @@
   [encrypt-alg key]
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (RSADecrypter. key)
+    (RSADecrypter. (k/get-internal key))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (AESDecrypter. key)
+    (AESDecrypter. (k/get-internal key))
     :dir
-    (DirectDecrypter. key)
+    (DirectDecrypter. (k/get-internal key))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (ECDHDecrypter. key)))
+    (ECDHDecrypter. (k/get-internal key))))
 
 (defn decrypt-jwt
   [{:keys [encrypt-alg serialized-jwt decrypt-key expected-claims curr-time]
@@ -245,11 +184,11 @@
   [{:keys [signing-alg encrypt-alg encrypt-enc claims signing-key encrypt-key]}]
   (let [signer (mk-signer signing-alg signing-key)
         claims-set (map->claims-set claims)
-        sign-header (mk-sign-header signing-alg)
+        sign-header (u/mk-sign-header signing-alg)
         signed (doto (SignedJWT. sign-header claims-set)
                      (.sign signer))
-        encrypt-alg-obj (mk-encrypt-alg encrypt-alg)
-        encrypt-enc-obj (mk-encrypt-enc encrypt-enc)
+        encrypt-alg-obj (u/mk-encrypt-alg encrypt-alg)
+        encrypt-enc-obj (u/mk-encrypt-enc encrypt-enc)
         encrypt-header (-> (com.nimbusds.jose.JWEHeader$Builder.
                             encrypt-alg-obj encrypt-enc-obj)
                            (.contentType "JWT")
