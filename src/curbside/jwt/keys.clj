@@ -124,14 +124,23 @@
        (map (partial rsa-keypair->jwk config))))
 
 (defn symmetric-key
-  [{:keys [key-len uuid? alg]}]
+  [{:keys [key-len uuid? alg random] :or {random (SecureRandom.)}}]
   {:pre [(= 0 (mod key-len 8))]}
-  (let [secure-random (SecureRandom.)
-        arr (make-array Byte/TYPE (/ key-len 8))]
-    (.nextBytes secure-random arr)
+  (let [arr (make-array Byte/TYPE (/ key-len 8))]
+    (.nextBytes random arr)
     (cond-> (com.nimbusds.jose.jwk.OctetSequenceKey$Builder. arr)
             uuid? (.keyID (first (u/uuids)))
             alg (.algorithm (or (u/mk-signing-alg alg)
                                 (u/mk-encrypt-alg alg)))
             true (.build)
             true (JWK->map))))
+
+(defn symmetric-keys
+  "Generates a lazy sequence of symmetric keys. Config should contain:
+   - :key-len - length of the key to generate. Varies depending on algorithm.
+   - :alg - algorithm this will be used with.
+   - :uuid? if true, assign a random UUID for the key id of each key.
+   - :random (optional) an instance of java.security.SecureRandom for generating
+             the keys."
+  [conf]
+  (repeatedly (fn [] (symmetric-key conf))))
