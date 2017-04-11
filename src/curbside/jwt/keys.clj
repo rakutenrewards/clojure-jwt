@@ -2,9 +2,10 @@
   (:require
    [curbside.jwt.util :as u]
    [cheshire.core :as json]
-   [clojure.walk :refer [keywordize-keys]])
+   [clojure.walk :refer [keywordize-keys]]
+   [medley.core :refer [map-kv]])
   (:import
-   (com.nimbusds.jose.jwk JWKSet RSAKey OctetSequenceKey)
+   (com.nimbusds.jose.jwk JWK JWKSet RSAKey OctetSequenceKey)
    (java.io File)
    (java.net URL)
    (java.security KeyPairGenerator SecureRandom)
@@ -25,21 +26,48 @@
   (to-json [jwk]
     "Converts the JWK to a JSON string."))
 
-(deftype JWK [__internal]
-  IJWK
-  (get-internal [this]
-    __internal)
-  (to-map [this]
-    (keywordize-keys (json/decode (to-json this))))
-  (private? [this]
-    (.isPrivate __internal))
-  (to-public [this]
-    (.toPublicJWK __internal))
-  (to-json [this]
-    (.toJSONString __internal))
-  Object
-  (toString [this]
-    (if (private? this) "PrivateJWK" (.toString __internal))))
+(defprotocol IOpaque
+  (reveal [x]
+    "Extracts the opacified data."))
+
+(defn opacify
+  [x]
+  (reify
+    IOpaque
+    (reveal [this] x)
+    Object
+    (toString [this] "Opaque object")))
+
+(defn JWK->map
+  "Convert a JWK Nimbus object to a map, keeping the private data within the
+   map opaque to prevent accidental printing."
+  [jwk]
+  (let [serialize (fn [j] (-> (.toJSONString j)
+                              (json/decode)
+                              (keywordize-keys)))]
+    (if (.isPrivate jwk)
+      (let [with-private-keys (serialize jwk)
+            public-only (or (some-> (.toPublicJWK jwk) (JWK->map)) {})
+            public-keys (into #{} (keys public-only))
+            private-keys (into #{}
+                               (filter (comp not (partial contains? public-keys))
+                                       (keys with-private-keys)))]
+        (reduce (fn [mp k] (if (contains? private-keys k)
+                             (update mp k opacify)
+                             mp))
+                (serialize jwk)
+                private-keys))
+      (serialize jwk))))
+
+(defn map->JWK
+  [mp]
+  (let [uncensored (map-kv (fn [k v]
+                             (if (satisfies? IOpaque v)
+                                 [k (reveal v)]
+                                 [k v]))
+                           mp)
+        as-json (json/encode uncensored)]
+    (JWK/parse as-json)))
 
 (defn load-jwks-from-file
   "Load a seq of JWKs from a file."
@@ -49,7 +77,7 @@
        (.load JWKSet)
        (.getKeys)
        (seq)
-       (map ->JWK)))
+       (map JWK->map)))
 
 (defn load-jwks-from-url
   "Load a seq of JWKs from a URL."
@@ -59,7 +87,7 @@
        (.load JWKSet)
        (.getKeys)
        (seq)
-       (map ->JWK)))
+       (map JWK->map)))
 
 (defn key-pairs
   "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments
@@ -81,7 +109,7 @@
       (.privateKey (.getPrivate key-pair))
       ((fn [k] (if uuid? (.keyID k (first (u/uuids))) k)))
       (.build)
-      (->JWK)))
+      (JWK->map)))
 
 (defn rsa-jwks
   "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
@@ -106,4 +134,4 @@
             alg (.algorithm (or (u/mk-signing-alg alg)
                                 (u/mk-encrypt-alg alg)))
             true (.build)
-            true (->JWK))))
+            true (JWK->map))))

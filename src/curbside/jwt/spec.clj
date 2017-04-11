@@ -27,7 +27,7 @@
 
 (s/def ::curr-time #(= DateTime (type %)))
 
-(def key-spec #(= curbside.jwt.keys.JWK (type %)))
+(def key-spec map?)
 
 (s/def ::signing-key key-spec)
 
