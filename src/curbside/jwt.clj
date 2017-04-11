@@ -73,13 +73,6 @@
                          (.sign signer))]
     (.serialize signed-jwt)))
 
-;TODO: is there a standard function for this? Or another way to accomplish the
-; same with cond?
-(defn- implies
-  "Material implication."
-  [p q]
-  (or (not p) q))
-
 (defn verify-standard-claims
   "Verify standard claims contained in a JWT. Returns the claims set as a map if
    verified successfully. Returns a symbol indicating an error otherwise."
@@ -97,17 +90,21 @@
         claims (claims-set->map (.getJWTClaimsSet jwt))]
     (cond
       (not (alg-match (:alg expected) jwt))
-      :alg-mismatch
-      (implies iss (not= (:iss claims) iss))
-      :iss-mismatch
-      (implies iss (not= (:sub claims) sub))
-      :sub-mismatch
-      (implies aud (not (some #(= % aud) (:aud claims))))
-      :aud-mismatch
+      (throw (ex-info "'alg' field doesn't match."
+                     {:actual (:alg claims) :expected alg}))
+      (and iss (not= (:iss claims) iss))
+      (throw (ex-info "'iss' field doesn't match."
+                      {:actual (:iss claims) :expected iss}))
+      (and sub (not= (:sub claims) sub))
+      (throw (ex-info "'sub' field doesn't match."
+                         {:actual (:sub claims) :expected sub}))
+      (and aud (not (some #(= % aud) (:aud claims))))
+      (throw (ex-info "'aud' field doesn't match. Got: "
+                         {:actual (:aud claims) :expected aud}))
       (expired? claims)
-      :expired
+      (throw (ex-info "JWT expired." {:exp (:exp claims)}))
       (too-early? claims)
-      :before-nbf
+      (throw (ex-info "JWT not valid yet." {:nbf (:nbf claims)}))
 
       :else
       claims)))
