@@ -1,7 +1,8 @@
 (ns curbside.jwt.keys
   (:require
    [curbside.jwt.util :as u]
-   [cheshire.core :as json])
+   [cheshire.core :as json]
+   [clojure.walk :refer [keywordize-keys]])
   (:import
    (com.nimbusds.jose.jwk JWKSet RSAKey OctetSequenceKey)
    (java.io File)
@@ -29,7 +30,7 @@
   (get-internal [this]
     __internal)
   (to-map [this]
-    (json/decode (to-json this)))
+    (keywordize-keys (json/decode (to-json this))))
   (private? [this]
     (.isPrivate __internal))
   (to-public [this]
