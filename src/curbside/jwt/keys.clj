@@ -107,13 +107,3 @@
                                 (u/mk-encrypt-alg alg)))
             true (.build)
             true (->JWK))))
-
-(defn hmac-jwks
-  "Generate a lazy sequence of new JWK HMAC secrets. key-len is given in bits."
-  [key-len]
-  {:pre [(= 0 (mod key-len 8))]}
-  (let [secure-random (SecureRandom.)
-        gen (fn [] (let [arr (make-array Byte/TYPE (/ key-len 8))]
-                     (.nextBytes secure-random arr)
-                     (seq arr)))]
-    (repeatedly gen)))
