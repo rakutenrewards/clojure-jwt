@@ -14,6 +14,10 @@
   (reveal [x]
     "Extracts the opacified data."))
 
+(extend-protocol IOpaque
+  java.lang.Object
+  (reveal [this] this))
+
 (defn opacify
   [x]
   (reify
@@ -26,11 +30,7 @@
   "Converts a map with some opaque fields, such as produced by our key
    generation functions, into a JSON string in JWK format."
   [mp]
-  (let [uncensored (map-kv (fn [k v]
-                             (if (satisfies? IOpaque v)
-                               [k (reveal v)]
-                               [k v]))
-                           mp)]
+  (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)]
     (json/encode uncensored)))
 
 (defn JWK->map
