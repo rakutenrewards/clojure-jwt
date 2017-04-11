@@ -19,6 +19,19 @@
 (s/def ::signing-alg #{:rs256 :rs384 :rs512 :hs256 :hs384 :hs512 :es256 :es384
                        :es512})
 
+; TODO: figure out what encodings are allowed for each encrypt-alg and put
+; them in here. We can use this map both in the spec and the generator.
+(def encs-for-alg
+  (let [all-encs (into #{} (keys jwt/encoding-algs))]
+    {:rsa1-5 #{:a128gcm}
+     :rsa-oaep all-encs
+     :rsa-oaep-256 all-encs
+     :dir #{:a128gcm}}))
+
+(defn alg-supports-enc?
+  [{:keys [encrypt-alg encrypt-enc]}]
+  (contains? (encrypt-alg encs-for-alg) encrypt-enc))
+
 (s/def ::claims map?)
 
 (s/def ::expected-claims map?)
@@ -44,7 +57,10 @@
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
     (throw (ex-info "AES keygen not yet implemented." {:alg encrypt-alg}))
     :dir
-    (g/return (keys/symmetric-key {:key-len 2048 :alg encrypt-alg}))
+    (g/bind
+      (s/gen #{128 192 256 384 512})
+      (fn [key-len]
+        (g/return (keys/symmetric-key {:key-len key-len :alg encrypt-alg}))))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
     (throw (ex-info "ECDH keygen not yet implemented." {:alg encrypt-alg}))))
 
@@ -54,13 +70,14 @@
   (g/bind (s/gen #{:rsa1-5 :rsa-oaep :rsa-oaep-256 :dir})
     (fn [encrypt-alg]
       (g/hash-map :encrypt-alg (g/return encrypt-alg)
-                  :encrypt-enc (s/gen ::encrypt-enc)
+                  :encrypt-enc (s/gen (encrypt-alg encs-for-alg))
                   :claims (g/return {:iss "foo" :aud "foo"})
                   :encrypt-key (gen-encrypt-key encrypt-alg)))))
 
 (s/def ::encrypt-jwt-config
   (s/with-gen
-    (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key])
+    (s/and (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key])
+           alg-supports-enc?)
     gen-encrypt-jwt-config))
 
 (s/def ::decrypt-jwt-config

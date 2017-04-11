@@ -117,4 +117,4 @@
 
 ;; property-based tests
 (deftest prop-encrypt-jwt
-  (stest/check `encrypt-jwt))
+  (stest/check `curbside.jwt/encrypt-jwt))
