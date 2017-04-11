@@ -89,6 +89,16 @@
                                     :expected-claims std-claims}))]
     (is (map? (verify)) "encrypt/decrypt succeeds")))
 
+(deftest encrypt-decrypt-dir
+  (let [alg :dir
+        enc :a128cbc-hs256
+        key (keys/symmetric-key {:key-len 256 :alg alg})
+        encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                :claims std-claims :encrypt-key key})
+        verified (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
+                               :decrypt-key key :expected-claims std-claims})]
+    (is (map? verified) "encrypt/decrypt succeeds")))
+
 (deftest nested-roundtrip
   (let [encrypt-alg :rsa-oaep-256
         encrypt-enc :a128gcm

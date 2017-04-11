@@ -42,6 +42,19 @@
     ;;:pbes2-hs512-a256kw (com.nimbusds.jose.JWEAlgorithm/PBES2_HS512_A256KW)
 ))
 
+(defn is-encrypt-alg?
+  [alg]
+  (some #(= alg %)
+        #{:rsa1-5 :rsa-oaep :rsa-oaep-256 :a128kw :a192kw :a256kw
+          :dir :ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw
+          :a128gcmkw :a192gcmkw :a256gcmkw :pbes2-hs256-a128kw
+          :pbes2-hs384-a192kw :pbes2-hs512-a256kw}))
+
+(defn is-signing-alg?
+  [alg]
+  (some #(= alg %) #{:rs256 :rs384 :rs512 :hs256 :hs384 :hs512 :es256 :es384
+                     :es512}))
+
 (defn mk-signing-alg
   [signing-alg]
   (case signing-alg

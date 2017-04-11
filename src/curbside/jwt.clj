@@ -73,6 +73,21 @@
                          (.sign signer))]
     (.serialize signed-jwt)))
 
+(def alg-map
+  {:dir "dir"
+   :rsa1-5 "RSA1_5"
+   :rsa-oaep "RSA-OAEP"
+   :rsa-oaep-256 "RSA-OAEP-256"
+   :a128kw "A128KW"
+   :a192kw "A192KW"
+   :a256kw "A256KW"
+   :hs256 "HS256"
+   :hs384 "HS384"
+   :hs512 "HS512"
+   :es256 "ES256"
+   :es384 "ES384"
+   :es512 "ES512"})
+
 (defn verify-standard-claims
   "Verify standard claims contained in a JWT. Returns the claims set as a map if
    verified successfully. Returns a symbol indicating an error otherwise."
@@ -87,7 +102,8 @@
                    (and exp (time-core/after? curr-time exp)))
         too-early? (fn [{:keys [nbf]}]
                      (and nbf (time-core/before? curr-time nbf)))
-        claims (claims-set->map (.getJWTClaimsSet jwt))]
+        claims (claims-set->map (.getJWTClaimsSet jwt))
+        _ (println (.toString (.getHeader jwt)))]
     (cond
       (not (alg-match (:alg expected) jwt))
       (throw (ex-info "'alg' field doesn't match."
