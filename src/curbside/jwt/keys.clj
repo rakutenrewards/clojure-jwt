@@ -2,7 +2,6 @@
   (:require
    [curbside.jwt.util :as u]
    [cheshire.core :as json]
-   [clojure.walk :refer [keywordize-keys]]
    [medley.core :refer [map-kv]])
   (:import
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey OctetSequenceKey)
@@ -39,8 +38,7 @@
    map opaque to prevent accidental printing."
   [jwk]
   (let [serialize (fn [j] (-> (.toJSONString j)
-                              (json/decode)
-                              (keywordize-keys)))]
+                              (json/decode true)))]
     (if (.isPrivate jwk)
       (let [with-private-keys (serialize jwk)
             public-only (or (some-> (.toPublicJWK jwk) (JWK->map)) {})
