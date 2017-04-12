@@ -14,69 +14,110 @@
 
 (def alg-info
   {:dir {:type :encrypt
-         :alg-field "dir"}
+         :alg-field "dir"
+         :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/DIR))}
    :rsa1-5 {:type :encrypt
-            :alg-field "RSA1_5"}
+            :alg-field "RSA1_5"
+            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/RSA1_5))}
    :rsa-oaep {:type :encrypt
-              :alg-field "RSA-OAEP"}
+              :alg-field "RSA-OAEP"
+              :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP))}
    :rsa-oaep-256 {:type :encrypt
-                  :alg-field "RSA-OAEP-256"}
+                  :alg-field "RSA-OAEP-256"
+                  :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP_256))}
    :a128kw {:type :encrypt
-            :alg-field "A128KW"}
+            :alg-field "A128KW"
+            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/A128KW))}
    :a192kw {:type :encrypt
-            :alg-field "A192KW"}
+            :alg-field "A192KW"
+            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/A192KW))}
    :a256kw {:type :encrypt
-            :alg-field "A256KW"}
+            :alg-field "A256KW"
+            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/A256KW))}
    :ecdh-es {:type :encrypt
-             :alg-field "ECDH-ES"}
+             :alg-field "ECDH-ES"
+             :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES))}
    :ecdh-es-a128kw {:type :encrypt
-                    :alg-field "ECDH-ES+A128KW"}
+                    :alg-field "ECDH-ES+A128KW"
+                    :mk-obj
+                    (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A128KW))}
    :ecdh-es-a192kw {:type :encrypt
-                    :alg-field "ECDH-ES+A192KW"}
+                    :alg-field "ECDH-ES+A192KW"
+                    :mk-obj
+                    (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A192KW))}
    :ecdh-es-a256kw {:type :encrypt
-                    :alg-field "ECDH-ES+A256KW"}
+                    :alg-field "ECDH-ES+A256KW"
+                    :mk-obj
+                    (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A256KW))}
    :pbes2-hs256 {:type :encrypt
-                 :alg-field "PBES2-HS256+A128KW"}
+                 :alg-field "PBES2-HS256+A128KW"
+                 :mk-obj
+                 (fn [] (ex-info "PBES2 not yet implemented." {}))}
    :pbes2-hs384 {:type :encrypt
-                 :alg-field "PBES2-HS384+A192KW"}
+                 :alg-field "PBES2-HS384+A192KW"
+                 :mk-obj
+                 (fn [] (ex-info "PBES2 not yet implemented." {}))}
    :pbes2-hs512 {:type :encrypt
-                 :alg-field "PBES2-HS512+A256KW"}
+                 :alg-field "PBES2-HS512+A256KW"
+                 :mk-obj
+                 (fn [] (ex-info "PBES2 not yet implemented." {}))}
    :hs256 {:type :signing
-           :alg-field "HS256"}
+           :alg-field "HS256"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/HS256))}
    :hs384 {:type :signing
-           :alg-field "HS384"}
+           :alg-field "HS384"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/HS384))}
    :hs512 {:type :signing
-           :alg-field "HS512"}
+           :alg-field "HS512"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/HS512))}
    :es256 {:type :signing
-           :alg-field "ES256"}
+           :alg-field "ES256"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/ES256))}
    :es384 {:type :signing
-           :alg-field "ES384"}
+           :alg-field "ES384"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/ES384))}
    :es512 {:type :signing
-           :alg-field "ES512"}
+           :alg-field "ES512"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/ES512))}
    :ps256 {:type :signing
-           :alg-field "PS256"}
+           :alg-field "PS256"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/PS256))}
    :ps384 {:type :signing
-           :alg-field "PS384"}
+           :alg-field "PS384"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/PS384))}
    :ps512 {:type :signing
-           :alg-field "PS512"}
+           :alg-field "PS512"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/PS512))}
    :rs256 {:type :signing
-           :alg-field "RS256"}
+           :alg-field "RS256"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/RS256))}
    :rs384 {:type :signing
-           :alg-field "RS384"}
+           :alg-field "RS384"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/RS384))}
    :rs512 {:type :signing
-           :alg-field "RS512"}
+           :alg-field "RS512"
+           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/RS512))}
    :a128cbc-hs256 {:type :encoding
-                   :alg-field "A128CBC-HS256"}
+                   :alg-field "A128CBC-HS256"
+                   :mk-obj
+                   (fn [] (com.nimbusds.jose.EncryptionMethod/A128CBC_HS256))}
    :a192cbc-hs384 {:type :encoding
-                   :alg-field "A192CBC-HS384"}
+                   :alg-field "A192CBC-HS384"
+                   :mk-obj
+                   (fn [] (com.nimbusds.jose.EncryptionMethod/A192CBC_HS384))}
    :a256cbc-hs512 {:type :encoding
-                   :alg-field "A256CBC-HS512"}
+                   :alg-field "A256CBC-HS512"
+                   :mk-obj
+                   (fn [] (com.nimbusds.jose.EncryptionMethod/A256CBC_HS512))}
    :a128gcm {:type :encoding
-             :alg-field "A128GCM"}
+             :alg-field "A128GCM"
+             :mk-obj (fn [] (com.nimbusds.jose.EncryptionMethod/A128GCM))}
    :a192gcm {:type :encoding
-             :alg-field "A192GCM"}
+             :alg-field "A192GCM"
+             :mk-obj (fn [] (com.nimbusds.jose.EncryptionMethod/A192GCM))}
    :a256gcm {:type :encoding
-             :alg-field "A256GCM"}})
+             :alg-field "A256GCM"
+             :mk-obj (fn [] (com.nimbusds.jose.EncryptionMethod/A256GCM))}})
 
 (defn algs-of-type
   [t]
@@ -102,67 +143,29 @@
    once."
   (map str (repeatedly #(UUID/randomUUID))))
 
+(defn mk-alg-obj
+  [alg]
+  ((get-in alg-info [alg :mk-obj])))
 
 (defn mk-encrypt-alg
   [encrypt-alg]
-  (case encrypt-alg
-    :rsa1-5 (com.nimbusds.jose.JWEAlgorithm/RSA1_5)
-    :rsa-oaep (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP)
-    :rsa-oaep-256 (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP_256)
-    :a128kw (com.nimbusds.jose.JWEAlgorithm/A128KW)
-    :a192kw (com.nimbusds.jose.JWEAlgorithm/A192KW)
-    :a256kw (com.nimbusds.jose.JWEAlgorithm/A256KW)
-    :dir (com.nimbusds.jose.JWEAlgorithm/DIR)
-    :ecdh-es (com.nimbusds.jose.JWEAlgorithm/ECDH_ES)
-    :ecdh-es-a128kw (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A128KW)
-    :ecdh-es-a192kw (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A192KW)
-    :ecdh-es-a256kw (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A256KW)
-    :a128gcmkw (com.nimbusds.jose.JWEAlgorithm/A128GCMKW)
-    :a192gcmkw (com.nimbusds.jose.JWEAlgorithm/A192GCMKW)
-    :a256gcmkw (com.nimbusds.jose.JWEAlgorithm/A256GCMKW)
-    ;TODO: password-based encrypter support. Needs extra params.
-    ;;:pbes2-hs256-a128kw (com.nimbusds.jose.JWEAlgorithm/PBES2_HS256_A128KW)
-    ;;:pbes2-hs384-a192kw (com.nimbusds.jose.JWEAlgorithm/PBES2_HS384_A192KW)
-    ;;:pbes2-hs512-a256kw (com.nimbusds.jose.JWEAlgorithm/PBES2_HS512_A256KW)
-))
-
-(defn is-encrypt-alg?
-  [alg]
-  (contains?
-    #{:rsa1-5 :rsa-oaep :rsa-oaep-256 :a128kw :a192kw :a256kw
-      :dir :ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw
-      :a128gcmkw :a192gcmkw :a256gcmkw :pbes2-hs256-a128kw
-      :pbes2-hs384-a192kw :pbes2-hs512-a256kw}
-    alg))
-
-(defn is-signing-alg?
-  [alg]
-  (contains? #{:rs256 :rs384 :rs512 :hs256 :hs384 :hs512 :es256 :es384 :es512}
-             alg))
+  (mk-alg-obj encrypt-alg))
 
 (defn mk-signing-alg
   [signing-alg]
-  (case signing-alg
-    :rs256 (com.nimbusds.jose.JWSAlgorithm/RS256)
-    :rs384 (com.nimbusds.jose.JWSAlgorithm/RS384)
-    :rs512 (com.nimbusds.jose.JWSAlgorithm/RS512)
-
-    :hs256 (com.nimbusds.jose.JWSAlgorithm/HS256)
-    :hs384 (com.nimbusds.jose.JWSAlgorithm/HS384)
-    :hs512 (com.nimbusds.jose.JWSAlgorithm/HS512)
-    :es256 (com.nimbusds.jose.JWSAlgorithm/ES256)
-    :es384 (com.nimbusds.jose.JWSAlgorithm/ES384)
-    :es512 (com.nimbusds.jose.JWSAlgorithm/ES512)))
+  (mk-alg-obj signing-alg))
 
 (defn mk-encrypt-enc
-  [encrypt-enc]
-  (case encrypt-enc
-    :a128cbc-hs256 (com.nimbusds.jose.EncryptionMethod/A128CBC_HS256)
-    :a192cbc-hs384 (com.nimbusds.jose.EncryptionMethod/A192CBC_HS384)
-    :a256cbc-hs512 (com.nimbusds.jose.EncryptionMethod/A256CBC_HS512)
-    :a128gcm (com.nimbusds.jose.EncryptionMethod/A128GCM)
-    :a192gcm (com.nimbusds.jose.EncryptionMethod/A192GCM)
-    :a256gcm (com.nimbusds.jose.EncryptionMethod/A256GCM)))
+  [enc]
+  (mk-alg-obj enc))
+
+(defn encrypt-alg?
+  [alg]
+  (contains? encrypt-algs alg))
+
+(defn signing-alg?
+  [alg]
+  (contains? signing-algs alg))
 
 (defn mk-encrypt-header
   [encrypt-alg encrypt-enc]
