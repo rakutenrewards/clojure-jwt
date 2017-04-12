@@ -139,8 +139,7 @@
         thumb2 (.computeThumbprint back-to-jwk2)]
     (is (= thumb1 thumb2))))
 
-; TODO: figure out how to get stest/check to work.
-; https://github.com/Curbside/curbside-jwt/issues/28
+;; property-based tests
 (deftest prop-encrypt-jwt
   (is (every? (comp nil? :failure)
               (stest/check `encrypt-jwt
