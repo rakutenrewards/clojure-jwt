@@ -37,6 +37,14 @@
   (let [verify (fn [] (sign-unsign std-claims std-claims))]
     (is (map? (verify))) "Expecting the claims we used as input succeeds."))
 
+(deftest unpexpected-signature
+  (let [signed (sign-claims std-claims)
+        wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))
+        unsign (fn [] (unsign-jwt {:signing-alg :rs256 :serialized-jwt signed
+                                   :unsigning-key wrong-key
+                                   :expected-claims std-claims}))]
+    (is (thrown-with-msg? Exception #"Signature not valid" (unsign)))))
+
 (deftest test-nbf
   (testing "Validation of nbf (not before) claim"
     (let [nbf-claims (assoc std-claims :nbf (t/plus (t/now) (t/weeks 5)))

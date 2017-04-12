@@ -124,7 +124,7 @@
         parsed (SignedJWT/parse serialized-jwt)]
     (if
       (not (.verify parsed verifier))
-      :signature-mismatch
+      (throw (ex-info "Signature not valid." {}))
       (verify-standard-claims parsed
                               (assoc expected-claims :alg signing-alg)
                               curr-time))))
