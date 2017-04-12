@@ -4,7 +4,10 @@
             [curbside.jwt :refer :all]
             [curbside.jwt.keys :as keys]
             [clojure.spec.test :as stest]
-            [curbside.jwt.spec :as spec]))
+            [curbside.jwt.spec :as spec]
+            [clojure.spec.gen :as g])
+  (:import
+   (com.nimbusds.jose JOSEException)))
 
 ;; enforce spec on these functions when running unit tests
 (stest/instrument `encrypt-jwt)
@@ -99,6 +102,17 @@
                                :decrypt-key key :expected-claims std-claims})]
     (is (map? verified) "encrypt/decrypt succeeds")))
 
+(deftest decrypt-wrong-key
+  (let [alg :rsa-oaep-256
+        enc :a128gcm
+        encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                :claims std-claims :encrypt-key rsa-jwk})
+        wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? false}))
+        verify (fn [] (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
+                                    :decrypt-key wrong-key
+                                    :expected-claims std-claims}))]
+    (is (thrown? JOSEException (verify)))))
+
 (deftest nested-roundtrip
   (let [encrypt-alg :rsa-oaep-256
         encrypt-enc :a128gcm
@@ -122,6 +136,9 @@
         thumb2 (.computeThumbprint back-to-jwk2)]
     (is (= thumb1 thumb2))))
 
-;; property-based tests
-(deftest prop-encrypt-jwt
-  (stest/check `curbside.jwt/encrypt-jwt))
+; TODO: figure out how to get stest/check to work.
+; https://github.com/Curbside/curbside-jwt/issues/28
+(deftest rand-inputs
+  (let [rand-encrypt-inputs (g/sample (spec/gen-encrypt-jwt-config))]
+    (println "###" rand-encrypt-inputs)
+    (is (doall (map encrypt-jwt rand-encrypt-inputs)))))

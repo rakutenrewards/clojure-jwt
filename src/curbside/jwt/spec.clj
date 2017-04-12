@@ -26,7 +26,7 @@
     {:rsa1-5 #{:a128gcm}
      :rsa-oaep all-encs
      :rsa-oaep-256 all-encs
-     :dir #{:a128gcm}}))
+     :dir all-encs}))
 
 (defn alg-supports-enc?
   [{:keys [encrypt-alg encrypt-enc]}]
