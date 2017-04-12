@@ -19,8 +19,7 @@
 (s/def ::signing-alg #{:rs256 :rs384 :rs512 :hs256 :hs384 :hs512 :es256 :es384
                        :es512})
 
-; TODO: figure out what encodings are allowed for each encrypt-alg and put
-; them in here. We can use this map both in the spec and the generator.
+; TODO: https://github.com/Curbside/curbside-jwt/issues/27
 (def encs-for-alg
   (let [all-encs (into #{} (keys jwt/encoding-algs))]
     {:rsa1-5 #{:a128gcm}
