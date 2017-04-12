@@ -4,6 +4,7 @@
    [clojure.spec.gen :as g]
    [curbside.jwt :as jwt]
    [curbside.jwt.keys :as keys]
+   [curbside.jwt.util :as u]
    [clj-time.core :as t])
   (:import
    (org.joda.time DateTime)
@@ -21,7 +22,7 @@
 
 ; TODO: https://github.com/Curbside/curbside-jwt/issues/27
 (def encs-for-alg
-  (let [all-encs (into #{} (keys jwt/encoding-algs))]
+  (let [all-encs u/encoding-algs]
     {:rsa1-5 #{:a128gcm}
      :rsa-oaep all-encs
      :rsa-oaep-256 all-encs

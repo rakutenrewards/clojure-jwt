@@ -1,4 +1,5 @@
 (ns curbside.jwt.util
+  (:require [medley.core :refer [filter-kv]])
   (:import
    (java.util UUID)
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
@@ -10,6 +11,89 @@
                              DirectDecrypter ECDHDecrypter)
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)))
+
+(def alg-info
+  {:dir {:type :encrypt
+         :alg-field "dir"}
+   :rsa1-5 {:type :encrypt
+            :alg-field "RSA1_5"}
+   :rsa-oaep {:type :encrypt
+              :alg-field "RSA-OAEP"}
+   :rsa-oaep-256 {:type :encrypt
+                  :alg-field "RSA-OAEP-256"}
+   :a128kw {:type :encrypt
+            :alg-field "A128KW"}
+   :a192kw {:type :encrypt
+            :alg-field "A192KW"}
+   :a256kw {:type :encrypt
+            :alg-field "A256KW"}
+   :ecdh-es {:type :encrypt
+             :alg-field "ECDH-ES"}
+   :ecdh-es-a128kw {:type :encrypt
+                    :alg-field "ECDH-ES+A128KW"}
+   :ecdh-es-a192kw {:type :encrypt
+                    :alg-field "ECDH-ES+A192KW"}
+   :ecdh-es-a256kw {:type :encrypt
+                    :alg-field "ECDH-ES+A256KW"}
+   :pbes2-hs256 {:type :encrypt
+                 :alg-field "PBES2-HS256+A128KW"}
+   :pbes2-hs384 {:type :encrypt
+                 :alg-field "PBES2-HS384+A192KW"}
+   :pbes2-hs512 {:type :encrypt
+                 :alg-field "PBES2-HS512+A256KW"}
+   :hs256 {:type :signing
+           :alg-field "HS256"}
+   :hs384 {:type :signing
+           :alg-field "HS384"}
+   :hs512 {:type :signing
+           :alg-field "HS512"}
+   :es256 {:type :signing
+           :alg-field "ES256"}
+   :es384 {:type :signing
+           :alg-field "ES384"}
+   :es512 {:type :signing
+           :alg-field "ES512"}
+   :ps256 {:type :signing
+           :alg-field "PS256"}
+   :ps384 {:type :signing
+           :alg-field "PS384"}
+   :ps512 {:type :signing
+           :alg-field "PS512"}
+   :rs256 {:type :signing
+           :alg-field "RS256"}
+   :rs384 {:type :signing
+           :alg-field "RS384"}
+   :rs512 {:type :signing
+           :alg-field "RS512"}
+   :a128cbc-hs256 {:type :encoding
+                   :alg-field "A128CBC-HS256"}
+   :a192cbc-hs384 {:type :encoding
+                   :alg-field "A192CBC-HS384"}
+   :a256cbc-hs512 {:type :encoding
+                   :alg-field "A256CBC-HS512"}
+   :a128gcm {:type :encoding
+             :alg-field "A128GCM"}
+   :a192gcm {:type :encoding
+             :alg-field "A192GCM"}
+   :a256gcm {:type :encoding
+             :alg-field "A256GCM"}})
+
+(defn algs-of-type
+  [t]
+  (into #{} (keys (filter-kv (fn [k v] (= t (:type v))) alg-info))))
+
+(def encoding-algs
+  (algs-of-type :encoding))
+
+(def signing-algs
+  (algs-of-type :signing))
+
+(def encrypt-algs
+  (algs-of-type :encrypt))
+
+(defn alg-field-str
+  [alg]
+  (get-in alg-info [alg :alg-field]))
 
 (defn uuids
   []

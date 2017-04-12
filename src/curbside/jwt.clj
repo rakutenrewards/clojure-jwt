@@ -5,7 +5,8 @@
    [clojure.string :as str]
    [cheshire.core :as json]
    [curbside.jwt.keys :as k]
-   [curbside.jwt.util :as u])
+   [curbside.jwt.util :as u]
+   [clojure.tools.trace :as trace])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
                       EncryptionMethod JWEHeader JOSEException JWEObject)
@@ -73,53 +74,6 @@
                          (.sign signer))]
     (.serialize signed-jwt)))
 
-(def encrypt-algs
-  "Map from our encryption algorithm keywords to the strings used in the 'alg'
-   field of JWT headers."
-  {:dir "dir"
-   :rsa1-5 "RSA1_5"
-   :rsa-oaep "RSA-OAEP"
-   :rsa-oaep-256 "RSA-OAEP-256"
-   :a128kw "A128KW"
-   :a192kw "A192KW"
-   :a256kw "A256KW"
-   :ecdh-es "ECDH-ES"
-   :ecdh-es-a128kw "ECDH-ES+A128KW"
-   :ecdh-es-a192kw "ECDH-ES+A192KW"
-   :ecdh-es-a256kw "ECDH-ES+A256KW"
-   :pbes2-hs256 "PBES2-HS256+A128KW"
-   :pbes2-hs384 "PBES2-HS384+A192KW"
-   :pbes2-hs512 "PBES2-HS512+A256KW"})
-
-(def signing-algs
-  "Map from our signing algorithm keywords to the strings used in the 'alg'
-   field of JWT headers."
-  {:hs256 "HS256"
-  :hs384 "HS384"
-  :hs512 "HS512"
-  :es256 "ES256"
-  :es384 "ES384"
-  :es512 "ES512"
-  :ps256 "PS256"
-  :ps384 "PS384"
-  :ps512 "PS512"
-  :rs256 "RS256"
-  :rs384 "RS384"
-   :rs512 "RS512"})
-
-(def encoding-algs
-  {:a128cbc-hs256 "A128CBC-HS256"
-   :a192cbc-hs384 "A192CBC-HS384"
-   :a256cbc-hs512 "A256CBC-HS512"
-   :a128gcm "A128GCM"
-   :a192gcm "A192GCM"
-   :a256gcm "A256GCM"})
-
-(def all-algs
-  "Maps our algorithm keywords to the strings used in the 'alg' field in JWT
-   headers."
-  (merge encrypt-algs signing-algs encoding-algs))
-
 (defn verify-standard-claims
   "Verify standard claims contained in a JWT. Returns the claims set as a map if
    verified successfully. Returns a symbol indicating an error otherwise."
@@ -129,7 +83,7 @@
                         (.getHeader)
                         (.getAlgorithm)
                         (.toString)
-                        (= (alg all-algs))))
+                        (= (u/alg-field-str alg))))
         expired? (fn [{:keys [exp]}]
                    (and exp (time-core/after? curr-time exp)))
         too-early? (fn [{:keys [nbf]}]
