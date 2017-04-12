@@ -74,6 +74,8 @@
     (.serialize signed-jwt)))
 
 (def encrypt-algs
+  "Map from our encryption algorithm keywords to the strings used in the 'alg'
+   field of JWT headers."
   {:dir "dir"
    :rsa1-5 "RSA1_5"
    :rsa-oaep "RSA-OAEP"
@@ -90,6 +92,8 @@
    :pbes2-hs512 "PBES2-HS512+A256KW"})
 
 (def signing-algs
+  "Map from our signing algorithm keywords to the strings used in the 'alg'
+   field of JWT headers."
   {:hs256 "HS256"
   :hs384 "HS384"
   :hs512 "HS512"
@@ -112,6 +116,8 @@
    :a256gcm "A256GCM"})
 
 (def all-algs
+  "Maps our algorithm keywords to the strings used in the 'alg' field in JWT
+   headers."
   (merge encrypt-algs signing-algs encoding-algs))
 
 (defn verify-standard-claims

@@ -6,6 +6,8 @@
             [clojure.spec.test :as stest]
             [curbside.jwt.spec :as spec]
             [clojure.spec.gen :as g]
+            ;clojure.test.check is unused, but if it's not included,
+            ;stest/check throws an incomprehensible exception.
             [clojure.test.check :as tc])
   (:import
    (com.nimbusds.jose JOSEException)))
@@ -101,7 +103,7 @@
                                 :claims std-claims :encrypt-key key})
         verified (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
                                :decrypt-key key :expected-claims std-claims})]
-    (is (map? verified) "encrypt/decrypt succeeds")))
+    (is (map? verified) "Symmetric encrypt/decrypt succeeds")))
 
 (deftest decrypt-wrong-key
   (let [alg :rsa-oaep-256
