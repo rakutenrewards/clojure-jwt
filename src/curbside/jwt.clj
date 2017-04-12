@@ -57,11 +57,11 @@
   [signing-alg signing-key]
   (case signing-alg
     (:rs256 :rs384 :rs512)
-    (RSASSASigner. (k/get-internal signing-key))
+    (RSASSASigner. (k/map->JWK signing-key))
     (:hs256 :hs384 :hs512)
-    (MACSigner. (k/get-internal signing-key))
+    (MACSigner. (k/map->JWK signing-key))
     (:ec256 :ec384 :ec512)
-    (ECDSASigner. (.getS (k/get-internal signing-key)))))
+    (ECDSASigner. (.getS (k/map->JWK signing-key)))))
 
 
 (defn sign-jwt
@@ -153,9 +153,9 @@
 (defn- mk-verifier
   [signing-alg unsigning-key]
   (case signing-alg
-    (:hs256 :hs384 :hs512) (MACVerifier. (k/get-internal unsigning-key))
-    (:rs256 :rs384 :rs512) (RSASSAVerifier. (k/get-internal unsigning-key))
-    (:es256 :es384 :es512) (ECDSAVerifier. (k/get-internal unsigning-key))))
+    (:hs256 :hs384 :hs512) (MACVerifier. (k/map->JWK unsigning-key))
+    (:rs256 :rs384 :rs512) (RSASSAVerifier. (k/map->JWK unsigning-key))
+    (:es256 :es384 :es512) (ECDSAVerifier. (k/map->JWK unsigning-key))))
 
 (defn unsign-jwt
   [{:keys [signing-alg serialized-jwt unsigning-key expected-claims
@@ -174,16 +174,16 @@
   [encrypt-alg key]
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (RSAEncrypter. (k/get-internal key))
+    (RSAEncrypter. (k/map->JWK key))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (AESEncrypter. (k/get-internal key))
+    (AESEncrypter. (k/map->JWK key))
     :dir
-    (DirectEncrypter. (k/get-internal key))
+    (DirectEncrypter. (k/map->JWK key))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (ECDHEncrypter. (k/get-internal key))
+    (ECDHEncrypter. (k/map->JWK key))
     ;TODO password-based encryption.
     ;;(:pbes2-hs256-a128kw :pbes2-hs384-a192kw :pbes2-hs512-a256kw)
-    ;;(PasswordBasedEncrypter. (k/get-internal key) salt-len num-iters)
+    ;;(PasswordBasedEncrypter. (k/map->JWK key) salt-len num-iters)
     ))
 
 (defn encrypt-jwt
@@ -199,13 +199,13 @@
   [encrypt-alg key]
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (RSADecrypter. (k/get-internal key))
+    (RSADecrypter. (k/map->JWK key))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (AESDecrypter. (k/get-internal key))
+    (AESDecrypter. (k/map->JWK key))
     :dir
-    (DirectDecrypter. (k/get-internal key))
+    (DirectDecrypter. (k/map->JWK key))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (ECDHDecrypter. (k/get-internal key))))
+    (ECDHDecrypter. (k/map->JWK key))))
 
 (defn decrypt-jwt
   [{:keys [encrypt-alg serialized-jwt decrypt-key expected-claims curr-time]
@@ -245,8 +245,9 @@
         decrypted-jwe (doto (com.nimbusds.jose.JWEObject/parse serialized-jwt)
                             (.decrypt decrypter))
         verifier (mk-verifier signing-alg unsigning-key)
-        verified-jwt (doto (.toSignedJWT (.getPayload decrypted-jwe))
-                           (.verify verifier))]
-    (verify-standard-claims verified-jwt
-                            (assoc expected-claims :alg signing-alg)
-                            curr-time)))
+        signed-jwt (.toSignedJWT (.getPayload decrypted-jwe))]
+    (if (.verify signed-jwt verifier)
+      (verify-standard-claims signed-jwt
+                              (assoc expected-claims :alg signing-alg)
+                              curr-time)
+      (throw (ex-info "Signing verification failed." {})))))

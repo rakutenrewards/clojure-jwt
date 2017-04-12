@@ -114,6 +114,13 @@
                         :decrypt-key rsa-jwk :expected-claims std-claims}))]
     (is (map? (verify)) "nested sign/encrypt followed by decrypt/unsign")))
 
+(deftest jwk->map-roundtrip
+  (let [back-to-jwk (keys/map->JWK rsa-jwk)
+        jwk-map (keys/JWK->map back-to-jwk)
+        back-to-jwk2 (keys/map->JWK jwk-map)
+        thumb1 (.computeThumbprint back-to-jwk)
+        thumb2 (.computeThumbprint back-to-jwk2)]
+    (is (= thumb1 thumb2))))
 
 ;; property-based tests
 (deftest prop-encrypt-jwt

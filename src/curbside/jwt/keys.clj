@@ -2,44 +2,61 @@
   (:require
    [curbside.jwt.util :as u]
    [cheshire.core :as json]
-   [clojure.walk :refer [keywordize-keys]])
+   [medley.core :refer [map-kv]])
   (:import
-   (com.nimbusds.jose.jwk JWKSet RSAKey OctetSequenceKey)
+   (com.nimbusds.jose.jwk JWK JWKSet RSAKey OctetSequenceKey)
    (java.io File)
    (java.net URL)
    (java.security KeyPairGenerator SecureRandom)
    (java.lang.Object)))
 
-(defprotocol IJWK
-  "A protocol representing a single JWK, used to sign, unsign, encrypt, or
-   decrypt JWTs, depending on the type of key contained in the JWK."
-  (get-internal [jwk]
-   "Gets the internal Java representation of the key.")
-  (to-map [jwk]
-    "Returns the JWK as a Clojure map. Use this to get access to keys like
-     'kid', 'kty', etc.")
-  (private? [jwk]
-    "Returns true if the key is or contains a private key.")
-  (to-public [jwk]
-    "Returns a new JWK containing only non-private information.")
-  (to-json [jwk]
-    "Converts the JWK to a JSON string."))
+(defprotocol IOpaque
+  (reveal [x]
+    "Extracts the opacified data."))
 
-(deftype JWK [__internal]
-  IJWK
-  (get-internal [this]
-    __internal)
-  (to-map [this]
-    (keywordize-keys (json/decode (to-json this))))
-  (private? [this]
-    (.isPrivate __internal))
-  (to-public [this]
-    (.toPublicJWK __internal))
-  (to-json [this]
-    (.toJSONString __internal))
-  Object
-  (toString [this]
-    (if (private? this) "PrivateJWK" (.toString __internal))))
+(extend-protocol IOpaque
+  java.lang.Object
+  (reveal [this] this))
+
+(defn opacify
+  [x]
+  (reify
+    IOpaque
+    (reveal [this] x)
+    Object
+    (toString [this] "Opaque object")))
+
+(defn opaque-map->json-jwk
+  "Converts a map with some opaque fields, such as produced by our key
+   generation functions, into a JSON string in JWK format."
+  [mp]
+  (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)]
+    (json/encode uncensored)))
+
+(defn JWK->map
+  "Convert a JWK Nimbus object to a map, keeping the private data within the
+   map opaque to prevent accidental printing."
+  [jwk]
+  (let [serialize (fn [j] (-> (.toJSONString j)
+                              (json/decode true)))]
+    (if (.isPrivate jwk)
+      (let [with-private-keys (serialize jwk)
+            public-only (or (some-> (.toPublicJWK jwk) (JWK->map)) {})
+            public-keys (into #{} (keys public-only))
+            private-keys (into #{}
+                               (filter (comp not (partial contains? public-keys))
+                                       (keys with-private-keys)))]
+        (reduce (fn [mp k] (if (contains? private-keys k)
+                             (update mp k opacify)
+                             mp))
+                (serialize jwk)
+                private-keys))
+      (serialize jwk))))
+
+(defn map->JWK
+  [mp]
+  (let [as-json (opaque-map->json-jwk mp)]
+    (JWK/parse as-json)))
 
 (defn load-jwks-from-file
   "Load a seq of JWKs from a file."
@@ -49,7 +66,7 @@
        (.load JWKSet)
        (.getKeys)
        (seq)
-       (map ->JWK)))
+       (map JWK->map)))
 
 (defn load-jwks-from-url
   "Load a seq of JWKs from a URL."
@@ -59,7 +76,7 @@
        (.load JWKSet)
        (.getKeys)
        (seq)
-       (map ->JWK)))
+       (map JWK->map)))
 
 (defn key-pairs
   "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments
@@ -81,7 +98,7 @@
       (.privateKey (.getPrivate key-pair))
       ((fn [k] (if uuid? (.keyID k (first (u/uuids))) k)))
       (.build)
-      (->JWK)))
+      (JWK->map)))
 
 (defn rsa-jwks
   "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
@@ -96,15 +113,24 @@
        (map (partial rsa-keypair->jwk config))))
 
 (defn symmetric-key
-  [{:keys [key-len uuid? alg]}]
+  [{:keys [key-len uuid? alg random] :or {random (SecureRandom.)}}]
   {:pre [(= 0 (mod key-len 8))]}
-  (let [secure-random (SecureRandom.)
-        arr (make-array Byte/TYPE (/ key-len 8))]
-    (.nextBytes secure-random arr)
+  (let [arr (make-array Byte/TYPE (/ key-len 8))]
+    (.nextBytes random arr)
     (cond-> (com.nimbusds.jose.jwk.OctetSequenceKey$Builder. arr)
             uuid? (.keyID (first (u/uuids)))
             alg (.algorithm (if (u/is-encrypt-alg? alg)
                                 (u/mk-encrypt-alg alg)
                                 (u/mk-signing-alg alg)))
             true (.build)
-            true (->JWK))))
+            true (JWK->map))))
+
+(defn symmetric-keys
+  "Generates a lazy sequence of symmetric keys. Config should contain:
+   - :key-len - length of the key to generate. Varies depending on algorithm.
+   - :alg - algorithm this will be used with.
+   - :uuid? if true, assign a random UUID for the key id of each key.
+   - :random (optional) an instance of java.security.SecureRandom for generating
+             the keys."
+  [conf]
+  (repeatedly (fn [] (symmetric-key conf))))
