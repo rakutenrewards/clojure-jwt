@@ -58,7 +58,7 @@
     (throw (ex-info "AES keygen not yet implemented." {:alg encrypt-alg}))
     :dir
     (g/bind
-      (s/gen #{128 192 256 384 512})
+      (g/return 128) ;TODO: other key lengths. See issue #32
       (fn [key-len]
         (g/return (keys/symmetric-key {:key-len key-len :alg encrypt-alg}))))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
@@ -70,7 +70,7 @@
   (g/bind (s/gen #{:rsa1-5 :rsa-oaep :rsa-oaep-256 :dir})
     (fn [encrypt-alg]
       (g/hash-map :encrypt-alg (g/return encrypt-alg)
-                  :encrypt-enc (s/gen (encrypt-alg encs-for-alg))
+                  :encrypt-enc (s/gen #{:a128gcm}) ;see issue #32
                   :claims (g/return {:iss "foo" :aud "foo"})
                   :encrypt-key (gen-encrypt-key encrypt-alg)))))
 

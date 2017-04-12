@@ -5,7 +5,8 @@
             [curbside.jwt.keys :as keys]
             [clojure.spec.test :as stest]
             [curbside.jwt.spec :as spec]
-            [clojure.spec.gen :as g])
+            [clojure.spec.gen :as g]
+            [clojure.test.check :as tc])
   (:import
    (com.nimbusds.jose JOSEException)))
 
@@ -138,7 +139,7 @@
 
 ; TODO: figure out how to get stest/check to work.
 ; https://github.com/Curbside/curbside-jwt/issues/28
-(deftest rand-inputs
-  (let [rand-encrypt-inputs (g/sample (spec/gen-encrypt-jwt-config))]
-    (println "###" rand-encrypt-inputs)
-    (is (doall (map encrypt-jwt rand-encrypt-inputs)))))
+(deftest prop-encrypt-jwt
+  (is (every? (comp nil? :failure)
+              (stest/check `encrypt-jwt
+                           {:clojure.spec.test.check/opts {:num-tests 10}}))))
