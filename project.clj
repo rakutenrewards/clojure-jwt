@@ -6,6 +6,7 @@
                  [com.nimbusds/nimbus-jose-jwt "4.35"
                   :exclusions [net.minidev/json-smart]]
                  [net.minidev/json-smart "1.3.1"]
-                 [cheshire "5.7.0"]]
+                 [cheshire "5.7.0"]
+                 [medley "0.8.4"]]
   :plugins [[lein-cljfmt "0.5.6"]]
   :profiles {:dev {:dependencies [[org.clojure/test.check "0.9.0"]]}})

@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [clj-time.core :as t]
             [curbside.jwt :refer :all]
+            [curbside.jwt.keys :as keys]
             [clojure.spec.test :as stest]
             [curbside.jwt.spec :as spec]))
 
@@ -13,7 +14,7 @@
 (stest/instrument `sign-encrypt-nested-jwt)
 (stest/instrument `decrypt-unsign-nested-jwt)
 
-(def rsa-jwk (first (rsa-jwks {:key-len 2048 :uuid? false})))
+(def rsa-jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? false})))
 
 (def std-claims {:iss "curbside.com" :aud "curbside.com" :sub "jim"})
 
@@ -92,7 +93,7 @@
   (let [encrypt-alg :rsa-oaep-256
         encrypt-enc :a128gcm
         sign-alg :hs256
-        sign-key "this is a signing key that is sufficiently long"
+        sign-key (keys/symmetric-key {:key-len 256 :uuid? false :alg :hs256})
         encoded (sign-encrypt-nested-jwt
                  {:signing-alg sign-alg :encrypt-alg encrypt-alg
                   :encrypt-enc encrypt-enc :claims std-claims
@@ -103,6 +104,13 @@
                         :decrypt-key rsa-jwk :expected-claims std-claims}))]
     (is (map? (verify)) "nested sign/encrypt followed by decrypt/unsign")))
 
+(deftest jwk->map-roundtrip
+  (let [back-to-jwk (keys/map->JWK rsa-jwk)
+        jwk-map (keys/JWK->map back-to-jwk)
+        back-to-jwk2 (keys/map->JWK jwk-map)
+        thumb1 (.computeThumbprint back-to-jwk)
+        thumb2 (.computeThumbprint back-to-jwk2)]
+    (is (= thumb1 thumb2))))
 
 ;; property-based tests
 (deftest prop-encrypt-jwt
