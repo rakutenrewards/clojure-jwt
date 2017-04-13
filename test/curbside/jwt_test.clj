@@ -3,6 +3,7 @@
             [clj-time.core :as t]
             [curbside.jwt :refer :all]
             [curbside.jwt.keys :as keys]
+            [curbside.jwt.keys.internal :as ki]
             [clojure.spec.test :as stest]
             [curbside.jwt.spec :as spec]
             [clojure.spec.gen :as g]
@@ -142,9 +143,9 @@
     (is (map? (verify)) "nested sign/encrypt followed by decrypt/unsign")))
 
 (deftest jwk->map-roundtrip
-  (let [back-to-jwk (keys/map->JWK rsa-jwk)
-        jwk-map (keys/JWK->map back-to-jwk)
-        back-to-jwk2 (keys/map->JWK jwk-map)
+  (let [back-to-jwk (ki/map->JWK rsa-jwk)
+        jwk-map (ki/JWK->map back-to-jwk)
+        back-to-jwk2 (ki/map->JWK jwk-map)
         thumb1 (.computeThumbprint back-to-jwk)
         thumb2 (.computeThumbprint back-to-jwk2)]
     (is (= thumb1 thumb2))))
@@ -168,6 +169,11 @@
     (is (thrown-with-msg? IOException
                           #"Exceeded configured input limit"
                           (jwk-set)))))
+
+(deftest jwk-private?
+  (let [jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))]
+    (is (keys/private? jwk))
+    (is (not (keys/private? (keys/get-public jwk))))))
 
 ;; property-based tests
 (deftest prop-encrypt-jwt
