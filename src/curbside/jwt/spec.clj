@@ -48,6 +48,8 @@
 
 (s/def ::decrypt-key key-spec)
 
+(s/def ::verifier #(or (fn? %) (nil? %)))
+
 (defn gen-encrypt-key
   [encrypt-alg]
   ;TODO: implement non-rsa test cases!
@@ -81,8 +83,9 @@
     gen-encrypt-jwt-config))
 
 (s/def ::decrypt-jwt-config
-  (s/keys :req-un [::encrypt-alg ::encrypt-enc ::serialized-jwt 
-                   ::decrypt-key]))
+  (s/keys :req-un [::encrypt-alg ::encrypt-enc ::serialized-jwt
+                   ::decrypt-key]
+          :opt-un [::verifier]))
 
 (s/def ::sign-jwt-config
   (s/and (s/keys :req-un [::signing-alg ::claims ::signing-key])
@@ -92,18 +95,17 @@
                (contains? :ec-key-id)))))
 
 (s/def ::unsign-jwt-config
-  (s/keys :req-un [::signing-alg ::serialized-jwt ::expected-claims
-                   ::unsigning-key]
-          :opt-un [::curr-time]))
+  (s/keys :req-un [::signing-alg ::serialized-jwt ::unsigning-key]
+          :opt-un [::verifier]))
 
-(s/def ::sign-encrypt-nested-jwt-config
+(s/def ::nest-jwt-config
   (s/keys :req-un [::signing-alg ::encrypt-alg ::encrypt-enc ::claims
                    ::signing-key ::encrypt-key]))
 
-(s/def ::decrypt-unsign-nested-jwt-config
+(s/def ::unnest-jwt-config
   (s/keys :req-un [::signing-alg ::encrypt-alg ::serialized-jwt ::unsigning-key
-                   ::decrypt-key ::expected-claims]
-          :opt-un [::curr-time]))
+                   ::decrypt-key ::encrypt-enc]
+          :opt-un [::verifier]))
 
 (s/fdef jwt/encrypt-jwt
         :args (s/cat :config ::encrypt-jwt-config)
@@ -121,10 +123,10 @@
         :args (s/cat :config ::unsign-jwt-config)
         :ret map?)
 
-(s/fdef jwt/sign-encrypt-nested-jwt
-        :args (s/cat :config ::sign-encrypt-nested-jwt-config)
+(s/fdef jwt/nest-jwt
+        :args (s/cat :config ::nest-jwt-config)
         :ret string?)
 
-(s/fdef jwt/decrypt-unsign-nested-jwt
-        :args (s/cat :config ::decrypt-unsign-nested-jwt-config)
+(s/fdef jwt/unnest-jwt
+        :args (s/cat :config ::unnest-jwt-config)
         :ret map?)
