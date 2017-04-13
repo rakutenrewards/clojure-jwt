@@ -8,7 +8,8 @@
             [clojure.spec.gen :as g]
             ;clojure.test.check is unused, but if it's not included,
             ;stest/check throws an incomprehensible exception.
-            [clojure.test.check :as tc])
+            [clojure.test.check :as tc]
+            [clojure.java.io :as io])
   (:import
    (com.nimbusds.jose JOSEException)
    (com.nimbusds.jose.proc BadJWEException)))
@@ -110,6 +111,36 @@
         thumb1 (.computeThumbprint back-to-jwk)
         thumb2 (.computeThumbprint back-to-jwk2)]
     (is (= thumb1 thumb2))))
+
+(deftest jwk-parsing
+  (let [jwk-set-json (slurp (io/resource "example-jwk-set.json"))
+        jwk-set (keys/parse-jwk-set jwk-set-json)]
+    (is (seq? jwk-set))))
+
+(deftest load-jwk-set-file
+  (let [jwk-set (keys/load-jwk-set-from-file
+                  (.toURI (io/resource "example-jwk-set.json")))]
+    (is (seq? jwk-set))))
+
+; the following tests are disabled by default since they hit URLs.
+
+#_(deftest load-jwk-set-url
+  (let [jwk-set (keys/load-jwk-set-from-url
+                 "https://myapp.auth0.com/.well-known/jwks.json")]
+    (is (seq? jwk-set))))
+
+#_(deftest load-jwk-url-size-limit
+  (let [jwk-set (fn [] (keys/load-jwk-set-from-url
+                         "https://myapp.auth0.com/.well-known/jwks.json"
+                         {:size-limit 1}))]
+    (is (thrown-with-msg? IOException
+                          #"Exceeded configured input limit"
+                          (jwk-set)))))
+
+(deftest jwk-private?
+  (let [jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))]
+    (is (keys/private? jwk))
+    (is (not (keys/private? (keys/->public jwk))))))
 
 (deftest test-process-jwt
   (let [nest (fn [claims]

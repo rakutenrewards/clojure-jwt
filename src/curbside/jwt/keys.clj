@@ -2,7 +2,7 @@
   (:require
    [curbside.jwt.util :as u]
    [cheshire.core :as json]
-   [medley.core :refer [map-kv]])
+   [medley.core :refer [map-kv filter-kv]])
   (:import
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey OctetSequenceKey)
    (java.io File)
@@ -18,20 +18,15 @@
   java.lang.Object
   (reveal [this] this))
 
+(def opaque-str "Opaque object")
+
 (defn opacify
   [x]
   (reify
     IOpaque
     (reveal [this] x)
     Object
-    (toString [this] "Opaque object")))
-
-(defn opaque-map->json-jwk
-  "Converts a map with some opaque fields, such as produced by our key
-   generation functions, into a JSON string in JWK format."
-  [mp]
-  (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)]
-    (json/encode uncensored)))
+    (toString [this] opaque-str)))
 
 (defn JWK->map
   "Convert a JWK Nimbus object to a map, keeping the private data within the
@@ -53,30 +48,17 @@
                 private-keys))
       (serialize jwk))))
 
+(defn ->json-jwk
+  "Converts a map with some opaque fields, such as produced by our key
+         generation functions, into a JSON string in JWK format."
+  [mp]
+  (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)]
+    (json/encode uncensored)))
+
 (defn map->JWK
   [mp]
-  (let [as-json (opaque-map->json-jwk mp)]
+  (let [as-json (->json-jwk mp)]
     (JWK/parse as-json)))
-
-(defn load-jwks-from-file
-  "Load a seq of JWKs from a file."
-  [path]
-  (->> path
-       (File.)
-       (.load JWKSet)
-       (.getKeys)
-       (seq)
-       (map JWK->map)))
-
-(defn load-jwks-from-url
-  "Load a seq of JWKs from a URL."
-  [url]
-  (->> url
-       (URL.)
-       (.load JWKSet)
-       (.getKeys)
-       (seq)
-       (map JWK->map)))
 
 (defn key-pairs
   "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments
@@ -99,6 +81,55 @@
       ((fn [k] (if uuid? (.keyID k (first (u/uuids))) k)))
       (.build)
       (JWK->map)))
+
+(defn private?
+  "Returns true if the jwk map contains private key information."
+  [jwk-map]
+  (some #(= opaque-str (.toString %)) (vals jwk-map)))
+
+(defn ->public
+  "Extract public JWK map from a JWK map containing private key information."
+  [jwk-map]
+  (filter-kv (fn [k v] (not (= opaque-str (.toString v)))) jwk-map))
+
+(defn parse-jwk-set
+  "Parse a JWK set from a JSON string"
+  [jstr]
+  (-> jstr
+      (JWKSet/parse)
+      (.getKeys)
+      (seq)
+      (map JWK->map)))
+
+(defn load-jwk-set-from-file
+  "Load a JWK set from a file. Returns a seq of JWK maps, with private data
+   censored."
+  [path]
+  (->> path
+       (File.)
+       (JWKSet/load)
+       (.getKeys)
+       (seq)
+       (map JWK->map)))
+
+(defn load-jwk-set-from-url
+  "Load a JWK set from a url. Returns a seq of JWK maps, with private data
+   censored. Optionally takes a config map containing any of these keys:
+
+   - :connect-timeout -- timeout to connect, in milliseconds.
+   - :read-timeout    -- timeout to read the URL, in milliseconds.
+   - :size-limit      -- maximum number of bytes to read.
+
+  If a limit is missing, it will default to unlimited."
+  ([url]
+   (load-jwk-set-from-url url {}))
+  ([url {:keys [connect-timeout read-timeout size-limit]
+         :or  {connect-timeout 0 read-timeout 0 size-limit 0}}]
+   (-> (if (= URL (type url)) url (URL. url))
+       (JWKSet/load connect-timeout read-timeout size-limit)
+       (.getKeys)
+       (seq)
+       (->> (map JWK->map)))))
 
 (defn rsa-jwks
   "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
