@@ -106,8 +106,8 @@
    censored."
   [path]
   (->> path
-       (File.)
-       (JWKSet/load)
+       (slurp)
+       (JWKSet/parse)
        (.getKeys)
        (seq)
        (map JWK->map)))
@@ -130,6 +130,18 @@
        (.getKeys)
        (seq)
        (->> (map JWK->map)))))
+
+(defn ->jwk-set
+  "Attempts to convert the input into a jwk-set by parsing a JSON string,
+   loading from a file or URL, converting from a single jwk, etc."
+  [x]
+  (cond
+    (string? x) (parse-jwk-set x)
+    (= File (type x)) (load-jwk-set-from-file x)
+    (= URL (type x)) (load-jwk-set-from-url x)
+    (and (map? x) (:kty x)) (cons x nil)
+    (coll? x) (into () x)
+    :else (ex-info (str "Can't convert " (type x) " into jwk-set.") {})))
 
 (defn rsa-jwks
   "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
