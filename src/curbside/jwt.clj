@@ -15,7 +15,10 @@
                              ECDHEncrypter RSADecrypter AESDecrypter
                              DirectDecrypter ECDHDecrypter)
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
-   (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)))
+   (com.nimbusds.jose.jwk.source ImmutableJWKSet)
+   (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
+   (com.nimbusds.jose.proc JWSVerificationKeySelector JWEDecryptionKeySelector)
+   (com.nimbusds.jwt.proc DefaultJWTProcessor DefaultJWTClaimsVerifier)))
 
 (defn- map->claims-set
   [claims]
@@ -48,7 +51,7 @@
                 (update acc k conv)
                 acc))
             claims-map
-            [[:aud string? vector]
+            [[:aud string? (comp set vector)]
              [:exp number? numeric-date->date-time]
              [:nbf number? numeric-date->date-time]
              [:iat number? numeric-date->date-time]])))
@@ -210,3 +213,28 @@
                               (assoc expected-claims :alg signing-alg)
                               curr-time)
       (throw (ex-info "Signing verification failed." {})))))
+
+(defn- make-verifier [verifier]
+  (proxy [DefaultJWTClaimsVerifier] []
+    (verify [claims]
+      (proxy-super verify claims)
+      (when-not (verifier (claims-set->map claims))
+        (throw (Exception. "Verification failed"))))))
+
+(defn process-jwt
+  [{:keys [signing-alg encrypt-alg encrypt-enc jwt keys verifier]}]
+  (let [jwk-set (JWKSet. (map k/map->JWK keys))
+        key-source (ImmutableJWKSet. jwk-set)
+        sign-selector (JWSVerificationKeySelector.
+                        (u/mk-signing-alg signing-alg)
+                        key-source)
+        enc-selector (JWEDecryptionKeySelector.
+                       (u/mk-encrypt-alg encrypt-alg)
+                       (u/mk-encrypt-enc encrypt-enc)
+                       key-source)
+        processor (doto (DefaultJWTProcessor.)
+                    (.setJWSKeySelector sign-selector)
+                    (.setJWEKeySelector enc-selector))]
+    (when verifier
+      (.setJWTClaimsVerifier processor (make-verifier verifier)))
+    (claims-set->map (.process processor jwt nil))))

@@ -120,6 +120,66 @@
         thumb2 (.computeThumbprint back-to-jwk2)]
     (is (= thumb1 thumb2))))
 
+(deftest test-process-jwt
+  (let [nest (fn [claims]
+               (sign-encrypt-nested-jwt
+                 {:signing-alg :rs256
+                  :encrypt-alg :rsa-oaep
+                  :encrypt-enc :a256gcm
+                  :claims claims
+                  :signing-key rsa-jwk
+                  :encrypt-key rsa-jwk}))
+
+        process (fn process
+                  ([claims]
+                   (process claims (constantly true)))
+                  ([claims verifier]
+                   (process-jwt
+                     {:signing-alg :rs256
+                      :encrypt-alg :rsa-oaep
+                      :encrypt-enc :a256gcm
+                      :keys [rsa-jwk]
+                      :jwt (nest claims)
+                      :verifier verifier})))]
+
+  (testing "by default verifies exp and nbf, if they are present"
+    (is (= {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"}
+           (process std-claims)))
+
+    (is (thrown? Exception
+                 (process
+                   (assoc std-claims
+                          :exp (t/minus (t/now) (t/days 7))))))
+
+    (is (thrown? Exception
+                 (process
+                   (assoc std-claims
+                          :nbf (t/plus (t/now) (t/days 7)))))))
+
+  (testing "allows custom claims verification"
+    (is (= {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"}
+           (process std-claims
+                    (fn [claims-set]
+                      (and (= (:iss claims-set) "curbside.com")
+                           (contains? (:aud claims-set) "curbside.com"))))))
+
+    (is (thrown? Exception
+           (process (assoc std-claims
+                           :exp (t/minus (t/now) (t/days 7)))
+                    (fn [claims-set]
+                      (and (= (:iss claims-set) "curbside.com")
+                           (contains? (:aud claims-set) "curbside.com"))))))
+
+    (is (thrown? Exception
+                 (process std-claims
+                          (fn [claims-set]
+                            (and (= (:iss claims-set) "blurbside.com")
+                                 (contains? (:aud claims-set) "bopis")))))))
+
+
+  (testing "rejects unsecured / plain JWTs")
+  (testing "rejects downgraded crypto attacks")))
+
 ;; property-based tests
 (deftest prop-encrypt-jwt
   (stest/check `encrypt-jwt))
