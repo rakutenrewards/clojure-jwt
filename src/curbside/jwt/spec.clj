@@ -81,9 +81,8 @@
     gen-encrypt-jwt-config))
 
 (s/def ::decrypt-jwt-config
-  (s/keys :req-un [::encrypt-alg ::serialized-jwt ::expected-claims
-                   ::decrypt-key]
-          :opt-un [::curr-time]))
+  (s/keys :req-un [::encrypt-alg ::encrypt-enc ::serialized-jwt 
+                   ::decrypt-key]))
 
 (s/def ::sign-jwt-config
   (s/and (s/keys :req-un [::signing-alg ::claims ::signing-key])

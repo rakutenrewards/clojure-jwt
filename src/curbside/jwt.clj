@@ -170,15 +170,37 @@
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
     (ECDHDecrypter. (k/map->JWK key))))
 
+(defn- make-verifier [verifier]
+  (proxy [DefaultJWTClaimsVerifier] []
+    (verify [claims]
+            (proxy-super verify claims)
+            (when-not (verifier (claims-set->map claims))
+              (throw (Exception. "Verification failed"))))))
+
+(defn process-jwt
+  [{:keys [signing-alg encrypt-alg encrypt-enc jwt keys verifier]}]
+  (let [jwk-set (JWKSet. (map k/map->JWK keys))
+        key-source (ImmutableJWKSet. jwk-set)
+        processor (DefaultJWTProcessor.)]
+    (when signing-alg
+      (.setJWSKeySelector processor
+                          (JWSVerificationKeySelector.
+                           (u/mk-signing-alg signing-alg)
+                           key-source)))
+    (when (and encrypt-alg encrypt-enc)
+      (.setJWEKeySelector processor
+                          (JWEDecryptionKeySelector.
+                           (u/mk-encrypt-alg encrypt-alg)
+                           (u/mk-encrypt-enc encrypt-enc)
+                           key-source)))
+    (when verifier
+      (.setJWTClaimsVerifier processor (make-verifier verifier)))
+    (claims-set->map (.process processor jwt nil))))
+
 (defn decrypt-jwt
-  [{:keys [encrypt-alg serialized-jwt decrypt-key expected-claims curr-time]
-    :or {curr-time (time-core/now)}}]
-  (let [decrypter (mk-decrypter encrypt-alg decrypt-key)
-        decrypted-jwt (doto (EncryptedJWT/parse serialized-jwt)
-                            (.decrypt decrypter))]
-    (verify-standard-claims decrypted-jwt
-                            (assoc expected-claims :alg encrypt-alg)
-                            curr-time)))
+  [{:keys [encrypt-alg encrypt-enc serialized-jwt decrypt-key]}]
+  (process-jwt {:encrypt-alg encrypt-alg :encrypt-enc encrypt-enc
+                :jwt serialized-jwt :keys [decrypt-key]}))
 
 (defn sign-encrypt-nested-jwt
   "Sign and then encrypt a nested JWT"
@@ -214,30 +236,3 @@
                               (assoc expected-claims :alg signing-alg)
                               curr-time)
       (throw (ex-info "Signing verification failed." {})))))
-
-(defn- make-verifier [verifier]
-  (proxy [DefaultJWTClaimsVerifier] []
-    (verify [claims]
-      (proxy-super verify claims)
-      (when-not (verifier (claims-set->map claims))
-        (throw (Exception. "Verification failed"))))))
-
-(defn process-jwt
-  [{:keys [signing-alg encrypt-alg encrypt-enc jwt keys verifier]}]
-  (let [jwk-set (JWKSet. (map k/map->JWK keys))
-        key-source (ImmutableJWKSet. jwk-set)
-        processor (DefaultJWTProcessor.)]
-    (when signing-alg
-      (.setJWSKeySelector processor
-                          (JWSVerificationKeySelector.
-                            (u/mk-signing-alg signing-alg)
-                            key-source)))
-    (when (and encrypt-alg encrypt-enc)
-      (.setJWEKeySelector processor
-                          (JWEDecryptionKeySelector.
-                            (u/mk-encrypt-alg encrypt-alg)
-                            (u/mk-encrypt-enc encrypt-enc)
-                            key-source)))
-    (when verifier
-      (.setJWTClaimsVerifier processor (make-verifier verifier)))
-    (claims-set->map (.process processor jwt nil))))

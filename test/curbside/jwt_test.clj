@@ -10,7 +10,8 @@
             ;stest/check throws an incomprehensible exception.
             [clojure.test.check :as tc])
   (:import
-   (com.nimbusds.jose JOSEException)))
+   (com.nimbusds.jose JOSEException)
+   (com.nimbusds.jose.proc BadJWEException)))
 
 ;; enforce spec on these functions when running unit tests
 (stest/instrument `encrypt-jwt)
@@ -98,6 +99,7 @@
         encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                                 :claims std-claims :encrypt-key rsa-jwk})
         verify (fn [] (decrypt-jwt {:encrypt-alg alg
+                                    :encrypt-enc enc
                                     :serialized-jwt encrypted
                                     :decrypt-key rsa-jwk
                                     :expected-claims std-claims}))]
@@ -109,7 +111,8 @@
         key (keys/symmetric-key {:key-len 256 :alg alg})
         encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                                 :claims std-claims :encrypt-key key})
-        verified (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
+        verified (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                               :serialized-jwt encrypted
                                :decrypt-key key :expected-claims std-claims})]
     (is (map? verified) "Symmetric encrypt/decrypt succeeds")))
 
@@ -119,10 +122,11 @@
         encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                                 :claims std-claims :encrypt-key rsa-jwk})
         wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? false}))
-        verify (fn [] (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
+        verify (fn [] (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                    :serialized-jwt encrypted
                                     :decrypt-key wrong-key
                                     :expected-claims std-claims}))]
-    (is (thrown? JOSEException (verify)))))
+    (is (thrown? BadJWEException (verify)))))
 
 (deftest nested-roundtrip
   (let [encrypt-alg :rsa-oaep-256
