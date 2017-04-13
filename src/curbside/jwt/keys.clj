@@ -1,10 +1,8 @@
 (ns curbside.jwt.keys
   (:require
    [curbside.jwt.util :as u]
-   [curbside.jwt.keys.internal :as internal]
    [cheshire.core :as json]
-   [medley.core :refer [map-kv filter-kv]]
-   [curbside.jwt.keys.internal :refer [map->JWK JWK->map]])
+   [medley.core :refer [map-kv filter-kv]])
   (:import
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey OctetSequenceKey)
    (java.io File)
@@ -12,17 +10,96 @@
    (java.security KeyPairGenerator SecureRandom)
    (java.lang.Object)))
 
+(defprotocol IOpaque
+  (reveal [x]
+    "Extracts the opacified data."))
+
+(extend-protocol IOpaque
+  java.lang.Object
+  (reveal [this] this))
+
+(def opaque-str "Opaque object")
+
+(defn opacify
+  [x]
+  (reify
+    IOpaque
+    (reveal [this] x)
+    Object
+    (toString [this] opaque-str)))
+
+(defn JWK->map
+  "Convert a JWK Nimbus object to a map, keeping the private data within the
+   map opaque to prevent accidental printing."
+  [jwk]
+  (let [serialize (fn [j] (-> (.toJSONString j)
+                              (json/decode true)))]
+    (if (.isPrivate jwk)
+      (let [with-private-keys (serialize jwk)
+            public-only (or (some-> (.toPublicJWK jwk) (JWK->map)) {})
+            public-keys (into #{} (keys public-only))
+            private-keys (into #{}
+                               (filter (comp not (partial contains? public-keys))
+                                       (keys with-private-keys)))]
+        (reduce (fn [mp k] (if (contains? private-keys k)
+                             (update mp k opacify)
+                             mp))
+                (serialize jwk)
+                private-keys))
+      (serialize jwk))))
+
+(defn ->json-jwk
+  "Converts a map with some opaque fields, such as produced by our key
+         generation functions, into a JSON string in JWK format."
+  [mp]
+  (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)]
+    (json/encode uncensored)))
+
+(defn map->JWK
+  [mp]
+  (let [as-json (->json-jwk mp)]
+    (JWK/parse as-json)))
+
+(defn key-pairs
+  "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments
+  with required keys :algorithm and :key-len and returns a lazy-seq whose each
+  element is a new KeyPair."
+  ([{:keys [algorithm key-len] :as conf}]
+   (key-pairs
+    conf
+    (doto (KeyPairGenerator/getInstance algorithm)
+      (.initialize key-len))))
+  ([conf gen]
+   (lazy-seq
+    (cons (.generateKeyPair gen) (key-pairs conf gen)))))
+
+(defn rsa-keypair->jwk
+  "Create a JWK from an RSA KeyPair."
+  [{uuid? :uuid?} key-pair]
+  (-> (com.nimbusds.jose.jwk.RSAKey$Builder. (.getPublic key-pair))
+      (.privateKey (.getPrivate key-pair))
+      ((fn [k] (if uuid? (.keyID k (first (u/uuids))) k)))
+      (.build)
+      (JWK->map)))
+
 (defn private?
   "Returns true if the jwk map contains private key information."
   [jwk-map]
-  (some #(= internal/opaque-str (.toString %)) (vals jwk-map)))
+  (some #(= opaque-str (.toString %)) (vals jwk-map)))
 
-(defn get-public
+(defn ->public
   "Extract public JWK map from a JWK map containing private key information."
   [jwk-map]
-  (filter-kv (fn [k v] (not (= internal/opaque-str (.toString v)))) jwk-map))
+  (filter-kv (fn [k v] (not (= opaque-str (.toString v)))) jwk-map))
 
-(def ->json-jwk internal/->json-jwk)
+(defn parse-jwk-set
+  "Parse a JWK set from a JSON string"
+  [jstr]
+  (-> jstr
+      (JWKSet/parse)
+      (.getKeys)
+      (seq)
+      (map JWK->map)))
 
 (defn load-jwk-set-from-file
   "Load a JWK set from a file. Returns a seq of JWK maps, with private data
@@ -63,8 +140,8 @@
   The returned JWK contains both the private and public keys! Use
   jwk-public-key to extract the public key. Use .toJSONString to get JSON."
   [config]
-  (->> (internal/key-pairs {:algorithm "RSA" :key-len (:key-len config)})
-       (map (partial internal/rsa-keypair->jwk config))))
+  (->> (key-pairs {:algorithm "RSA" :key-len (:key-len config)})
+       (map (partial rsa-keypair->jwk config))))
 
 (defn symmetric-key
   [{:keys [key-len uuid? alg random] :or {random (SecureRandom.)}}]

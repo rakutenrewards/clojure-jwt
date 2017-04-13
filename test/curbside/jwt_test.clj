@@ -3,7 +3,6 @@
             [clj-time.core :as t]
             [curbside.jwt :refer :all]
             [curbside.jwt.keys :as keys]
-            [curbside.jwt.keys.internal :as ki]
             [clojure.spec.test :as stest]
             [curbside.jwt.spec :as spec]
             [clojure.spec.gen :as g]
@@ -143,12 +142,17 @@
     (is (map? (verify)) "nested sign/encrypt followed by decrypt/unsign")))
 
 (deftest jwk->map-roundtrip
-  (let [back-to-jwk (ki/map->JWK rsa-jwk)
-        jwk-map (ki/JWK->map back-to-jwk)
-        back-to-jwk2 (ki/map->JWK jwk-map)
+  (let [back-to-jwk (keys/map->JWK rsa-jwk)
+        jwk-map (keys/JWK->map back-to-jwk)
+        back-to-jwk2 (keys/map->JWK jwk-map)
         thumb1 (.computeThumbprint back-to-jwk)
         thumb2 (.computeThumbprint back-to-jwk2)]
     (is (= thumb1 thumb2))))
+
+(deftest jwk-parsing
+  (let [jwk-set-json (slurp (io/resource "example-jwk-set.json"))
+        jwk-set (keys/parse-jwk-set jwk-set-json)]
+    (is (seq? jwk-set))))
 
 (deftest load-jwk-set-file
   (let [jwk-set (keys/load-jwk-set-from-file
@@ -180,7 +184,7 @@
                (sign-encrypt-nested-jwt
                  {:signing-alg :rs256
                   :encrypt-alg :rsa-oaep
-                  :encrypt-enc :a128gcm
+                  :encrypt-enc :a256gcm
                   :claims claims
                   :signing-key rsa-jwk
                   :encrypt-key rsa-jwk}))
@@ -192,7 +196,7 @@
                    (process-jwt
                      {:signing-alg :rs256
                       :encrypt-alg :rsa-oaep
-                      :encrypt-enc :a128gcm
+                      :encrypt-enc :a256gcm
                       :keys [rsa-jwk]
                       :jwt (nest claims)
                       :verifier verifier})))]

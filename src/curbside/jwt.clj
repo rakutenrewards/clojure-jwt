@@ -5,7 +5,6 @@
    [clojure.string :as str]
    [cheshire.core :as json]
    [curbside.jwt.keys :as k]
-   [curbside.jwt.keys.internal :as ki]
    [curbside.jwt.util :as u]
    [clojure.tools.trace :as trace])
   (:import
@@ -62,11 +61,11 @@
   [signing-alg signing-key]
   (case signing-alg
     (:rs256 :rs384 :rs512)
-    (RSASSASigner. (ki/map->JWK signing-key))
+    (RSASSASigner. (k/map->JWK signing-key))
     (:hs256 :hs384 :hs512)
-    (MACSigner. (ki/map->JWK signing-key))
+    (MACSigner. (k/map->JWK signing-key))
     (:ec256 :ec384 :ec512)
-    (ECDSASigner. (.getS (ki/map->JWK signing-key)))))
+    (ECDSASigner. (.getS (k/map->JWK signing-key)))))
 
 
 (defn sign-jwt
@@ -117,9 +116,9 @@
 (defn- mk-verifier
   [signing-alg unsigning-key]
   (case signing-alg
-    (:hs256 :hs384 :hs512) (MACVerifier. (ki/map->JWK unsigning-key))
-    (:rs256 :rs384 :rs512) (RSASSAVerifier. (ki/map->JWK unsigning-key))
-    (:es256 :es384 :es512) (ECDSAVerifier. (ki/map->JWK unsigning-key))))
+    (:hs256 :hs384 :hs512) (MACVerifier. (k/map->JWK unsigning-key))
+    (:rs256 :rs384 :rs512) (RSASSAVerifier. (k/map->JWK unsigning-key))
+    (:es256 :es384 :es512) (ECDSAVerifier. (k/map->JWK unsigning-key))))
 
 (defn unsign-jwt
   [{:keys [signing-alg serialized-jwt unsigning-key expected-claims
@@ -138,13 +137,13 @@
   [encrypt-alg key]
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (RSAEncrypter. (ki/map->JWK key))
+    (RSAEncrypter. (k/map->JWK key))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (AESEncrypter. (ki/map->JWK key))
+    (AESEncrypter. (k/map->JWK key))
     :dir
-    (DirectEncrypter. (ki/map->JWK key))
+    (DirectEncrypter. (k/map->JWK key))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (ECDHEncrypter. (ki/map->JWK key))
+    (ECDHEncrypter. (k/map->JWK key))
     ;TODO password-based encryption.
     ;;(:pbes2-hs256-a128kw :pbes2-hs384-a192kw :pbes2-hs512-a256kw)
     ;;(PasswordBasedEncrypter. (k/map->JWK key) salt-len num-iters)
@@ -163,13 +162,13 @@
   [encrypt-alg key]
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
-    (RSADecrypter. (ki/map->JWK key))
+    (RSADecrypter. (k/map->JWK key))
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
-    (AESDecrypter. (ki/map->JWK key))
+    (AESDecrypter. (k/map->JWK key))
     :dir
-    (DirectDecrypter. (ki/map->JWK key))
+    (DirectDecrypter. (k/map->JWK key))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (ECDHDecrypter. (ki/map->JWK key))))
+    (ECDHDecrypter. (k/map->JWK key))))
 
 (defn decrypt-jwt
   [{:keys [encrypt-alg serialized-jwt decrypt-key expected-claims curr-time]
@@ -225,7 +224,7 @@
 
 (defn process-jwt
   [{:keys [signing-alg encrypt-alg encrypt-enc jwt keys verifier]}]
-  (let [jwk-set (JWKSet. (map ki/map->JWK keys))
+  (let [jwk-set (JWKSet. (map k/map->JWK keys))
         key-source (ImmutableJWKSet. jwk-set)
         sign-selector (JWSVerificationKeySelector.
                         (u/mk-signing-alg signing-alg)
