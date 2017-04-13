@@ -177,7 +177,7 @@
 (deftest jwk-private?
   (let [jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))]
     (is (keys/private? jwk))
-    (is (not (keys/private? (keys/get-public jwk))))))
+    (is (not (keys/private? (keys/->public jwk))))))
 
 (deftest test-process-jwt
   (let [nest (fn [claims]
