@@ -23,16 +23,18 @@
 
 (defn- map->claims-set
   [claims]
-  (let [defClaims {:sub (fn [x y] (.subject x y))
-                   :aud (fn [x y] (.audience x y))
-                   :exp (fn [x y] (.expirationTime x (time-coerce/to-date y)))
-                   :iss (fn [x y] (.issuer x y))
-                   :iat (fn [x y] (.issueTime x (time-coerce/to-date y)))
-                   :jti (fn [x y] (.jwtID x y))
-                   :nbf (fn [x y] (.notBeforeTime x (time-coerce/to-date y)))}
+  (let [def-claims {:sub (fn [x y] (.subject x y))
+                    :aud (fn [x y] (if (string? y)
+                                     (.audience x y)
+                                     (.audience x (vec y))))
+                    :exp (fn [x y] (.expirationTime x (time-coerce/to-date y)))
+                    :iss (fn [x y] (.issuer x y))
+                    :iat (fn [x y] (.issueTime x (time-coerce/to-date y)))
+                    :jti (fn [x y] (.jwtID x y))
+                    :nbf (fn [x y] (.notBeforeTime x (time-coerce/to-date y)))}
         add-claim (fn [builder k v]
-                    (if (contains? defClaims k)
-                      ((defClaims k) builder v)
+                    (if (contains? def-claims k)
+                      ((def-claims k) builder v)
                       (.claim builder (name k) v)))]
     (.build
      (reduce-kv add-claim (com.nimbusds.jwt.JWTClaimsSet$Builder.) claims))))
