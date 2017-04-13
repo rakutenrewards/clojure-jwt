@@ -87,10 +87,12 @@
   (let [aud-claims (assoc std-claims :aud ["sephora.com"])
         verify-bad (fn [] (sign-unsign aud-claims std-claims))
         bigger-aud (assoc std-claims :aud ["curbside.com" "sephora.com"])
-        verify-good (fn [] (sign-unsign bigger-aud std-claims))]
+        set-aud (assoc std-claims :aud #{"curbside.com"})
+        verify-good (fn [claims] (sign-unsign claims std-claims))]
     (is (thrown-with-msg? Exception #"'aud' field doesn't match" (verify-bad))
         "wrong aud rejected")
-    (is (map? (verify-good)) "aud contains expected aud -> accepted")))
+    (is (map? (verify-good bigger-aud)) "aud contains expected aud -> accepted")
+    (is (map? (verify-good set-aud)) "aud encoded as a Clojure set")))
 
 (deftest encrypt-decrypt
   (let [alg :rsa-oaep-256
