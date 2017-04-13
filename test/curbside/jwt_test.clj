@@ -18,7 +18,7 @@
 (stest/instrument `decrypt-jwt)
 (stest/instrument `sign-jwt)
 (stest/instrument `unsign-jwt)
-(stest/instrument `sign-encrypt-nested-jwt)
+(stest/instrument `nest-jwt)
 (stest/instrument `unnest-jwt)
 
 (def rsa-jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? false})))
@@ -93,7 +93,7 @@
         encrypt-enc :a128gcm
         sign-alg :hs256
         sign-key (keys/symmetric-key {:key-len 256 :uuid? false :alg :hs256})
-        encoded (sign-encrypt-nested-jwt
+        encoded (nest-jwt
                  {:signing-alg sign-alg :encrypt-alg encrypt-alg
                   :encrypt-enc encrypt-enc :claims std-claims
                   :signing-key sign-key :encrypt-key rsa-jwk})
@@ -113,7 +113,7 @@
 
 (deftest test-process-jwt
   (let [nest (fn [claims]
-               (sign-encrypt-nested-jwt
+               (nest-jwt
                  {:signing-alg :rs256
                   :encrypt-alg :rsa-oaep
                   :encrypt-enc :a256gcm
