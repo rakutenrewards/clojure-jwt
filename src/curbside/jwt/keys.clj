@@ -58,25 +58,35 @@
   (let [as-json (opaque-map->json-jwk mp)]
     (JWK/parse as-json)))
 
-(defn load-jwks-from-file
-  "Load a seq of JWKs from a file."
+(defn load-jwk-set-from-file
+  "Load a JWK set from a file. Returns a seq of JWK maps, with private data
+   censored."
   [path]
   (->> path
        (File.)
-       (.load JWKSet)
+       (JWKSet/load)
        (.getKeys)
        (seq)
        (map JWK->map)))
 
-(defn load-jwks-from-url
-  "Load a seq of JWKs from a URL."
-  [url]
-  (->> url
-       (URL.)
-       (.load JWKSet)
+(defn load-jwk-set-from-url
+  "Load a JWK set from a url. Returns a seq of JWK maps, with private data
+   censored. Optionally takes a config map containing any of these keys:
+
+   - :connect-timeout -- timeout to connect, in milliseconds.
+   - :read-timeout    -- timeout to read the URL, in milliseconds.
+   - :size-limit      -- maximum number of bytes to read.
+
+  If a limit is missing, it will default to unlimited."
+  ([url]
+   (load-jwk-set-from-url url {}))
+  ([url {:keys [connect-timeout read-timeout size-limit]
+         :or  {connect-timeout 0 read-timeout 0 size-limit 0}}]
+   (-> (if (= URL (type url)) url (URL. url))
+       (JWKSet/load connect-timeout read-timeout size-limit)
        (.getKeys)
        (seq)
-       (map JWK->map)))
+       (->> (map JWK->map)))))
 
 (defn key-pairs
   "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments
