@@ -119,8 +119,9 @@
     (.nextBytes random arr)
     (cond-> (com.nimbusds.jose.jwk.OctetSequenceKey$Builder. arr)
             uuid? (.keyID (first (u/uuids)))
-            alg (.algorithm (or (u/mk-signing-alg alg)
-                                (u/mk-encrypt-alg alg)))
+            alg (.algorithm (if (u/encrypt-alg? alg)
+                                (u/mk-encrypt-alg alg)
+                                (u/mk-signing-alg alg)))
             true (.build)
             true (JWK->map))))
 

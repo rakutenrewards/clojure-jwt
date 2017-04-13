@@ -4,7 +4,13 @@
             [curbside.jwt :refer :all]
             [curbside.jwt.keys :as keys]
             [clojure.spec.test :as stest]
-            [curbside.jwt.spec :as spec]))
+            [curbside.jwt.spec :as spec]
+            [clojure.spec.gen :as g]
+            ;clojure.test.check is unused, but if it's not included,
+            ;stest/check throws an incomprehensible exception.
+            [clojure.test.check :as tc])
+  (:import
+   (com.nimbusds.jose JOSEException)))
 
 ;; enforce spec on these functions when running unit tests
 (stest/instrument `encrypt-jwt)
@@ -97,6 +103,27 @@
                                     :expected-claims std-claims}))]
     (is (map? (verify)) "encrypt/decrypt succeeds")))
 
+(deftest encrypt-decrypt-dir
+  (let [alg :dir
+        enc :a128cbc-hs256
+        key (keys/symmetric-key {:key-len 256 :alg alg})
+        encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                :claims std-claims :encrypt-key key})
+        verified (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
+                               :decrypt-key key :expected-claims std-claims})]
+    (is (map? verified) "Symmetric encrypt/decrypt succeeds")))
+
+(deftest decrypt-wrong-key
+  (let [alg :rsa-oaep-256
+        enc :a128gcm
+        encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                :claims std-claims :encrypt-key rsa-jwk})
+        wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? false}))
+        verify (fn [] (decrypt-jwt {:encrypt-alg alg :serialized-jwt encrypted
+                                    :decrypt-key wrong-key
+                                    :expected-claims std-claims}))]
+    (is (thrown? JOSEException (verify)))))
+
 (deftest nested-roundtrip
   (let [encrypt-alg :rsa-oaep-256
         encrypt-enc :a128gcm
@@ -122,4 +149,6 @@
 
 ;; property-based tests
 (deftest prop-encrypt-jwt
-  (stest/check `encrypt-jwt))
+  (is (every? (comp nil? :failure)
+              (stest/check `encrypt-jwt
+                           {:clojure.spec.test.check/opts {:num-tests 10}}))))

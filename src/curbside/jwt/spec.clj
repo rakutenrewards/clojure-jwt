@@ -4,6 +4,7 @@
    [clojure.spec.gen :as g]
    [curbside.jwt :as jwt]
    [curbside.jwt.keys :as keys]
+   [curbside.jwt.util :as u]
    [clj-time.core :as t])
   (:import
    (org.joda.time DateTime)
@@ -18,6 +19,18 @@
 
 (s/def ::signing-alg #{:rs256 :rs384 :rs512 :hs256 :hs384 :hs512 :es256 :es384
                        :es512})
+
+; TODO: https://github.com/Curbside/curbside-jwt/issues/27
+(def encs-for-alg
+  (let [all-encs u/encoding-algs]
+    {:rsa1-5 #{:a128gcm}
+     :rsa-oaep all-encs
+     :rsa-oaep-256 all-encs
+     :dir all-encs}))
+
+(defn alg-supports-enc?
+  [{:keys [encrypt-alg encrypt-enc]}]
+  (contains? (encrypt-alg encs-for-alg) encrypt-enc))
 
 (s/def ::claims map?)
 
@@ -44,23 +57,27 @@
     (:a128kw :a192kw :a256kw :a128gcmkw :a192gcmkw :a256gcmkw)
     (throw (ex-info "AES keygen not yet implemented." {:alg encrypt-alg}))
     :dir
-    (throw (ex-info "DIR keygen not yet implemented." {:alg encrypt-alg}))
+    (g/bind
+      (g/return 128) ;TODO: other key lengths. See issue #32
+      (fn [key-len]
+        (g/return (keys/symmetric-key {:key-len key-len :alg encrypt-alg}))))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
     (throw (ex-info "ECDH keygen not yet implemented." {:alg encrypt-alg}))))
 
 (defn gen-encrypt-jwt-config
   []
   ;TODO: generate non-rsa test cases!
-  (g/bind (s/gen #{:rsa1-5 :rsa-oaep :rsa-oaep-256})
+  (g/bind (s/gen #{:rsa1-5 :rsa-oaep :rsa-oaep-256 :dir})
     (fn [encrypt-alg]
       (g/hash-map :encrypt-alg (g/return encrypt-alg)
-                  :encrypt-enc (s/gen ::encrypt-enc)
+                  :encrypt-enc (s/gen #{:a128gcm}) ;see issue #32
                   :claims (g/return {:iss "foo" :aud "foo"})
                   :encrypt-key (gen-encrypt-key encrypt-alg)))))
 
 (s/def ::encrypt-jwt-config
   (s/with-gen
-    (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key])
+    (s/and (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key])
+           alg-supports-enc?)
     gen-encrypt-jwt-config))
 
 (s/def ::decrypt-jwt-config

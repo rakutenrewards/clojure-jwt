@@ -5,7 +5,8 @@
    [clojure.string :as str]
    [cheshire.core :as json]
    [curbside.jwt.keys :as k]
-   [curbside.jwt.util :as u])
+   [curbside.jwt.util :as u]
+   [clojure.tools.trace :as trace])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
                       EncryptionMethod JWEHeader JOSEException JWEObject)
@@ -82,7 +83,7 @@
                         (.getHeader)
                         (.getAlgorithm)
                         (.toString)
-                        (= (str/upper-case (name alg)))))
+                        (= (u/alg-field-str alg))))
         expired? (fn [{:keys [exp]}]
                    (and exp (time-core/after? curr-time exp)))
         too-early? (fn [{:keys [nbf]}]
