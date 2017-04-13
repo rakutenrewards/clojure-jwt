@@ -15,109 +15,103 @@
 (def alg-info
   {:dir {:type :encrypt
          :alg-field "dir"
-         :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/DIR))}
+         :mk-obj com.nimbusds.jose.JWEAlgorithm/DIR}
    :rsa1-5 {:type :encrypt
             :alg-field "RSA1_5"
-            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/RSA1_5))}
+            :mk-obj com.nimbusds.jose.JWEAlgorithm/RSA1_5}
    :rsa-oaep {:type :encrypt
               :alg-field "RSA-OAEP"
-              :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP))}
+              :mk-obj com.nimbusds.jose.JWEAlgorithm/RSA_OAEP}
    :rsa-oaep-256 {:type :encrypt
                   :alg-field "RSA-OAEP-256"
-                  :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/RSA_OAEP_256))}
+                  :mk-obj com.nimbusds.jose.JWEAlgorithm/RSA_OAEP_256}
    :a128kw {:type :encrypt
             :alg-field "A128KW"
-            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/A128KW))}
+            :mk-obj com.nimbusds.jose.JWEAlgorithm/A128KW}
    :a192kw {:type :encrypt
             :alg-field "A192KW"
-            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/A192KW))}
+            :mk-obj com.nimbusds.jose.JWEAlgorithm/A192KW}
    :a256kw {:type :encrypt
             :alg-field "A256KW"
-            :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/A256KW))}
+            :mk-obj com.nimbusds.jose.JWEAlgorithm/A256KW}
    :ecdh-es {:type :encrypt
              :alg-field "ECDH-ES"
-             :mk-obj (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES))}
+             :mk-obj com.nimbusds.jose.JWEAlgorithm/ECDH_ES}
    :ecdh-es-a128kw {:type :encrypt
                     :alg-field "ECDH-ES+A128KW"
                     :mk-obj
-                    (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A128KW))}
+                    com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A128KW}
    :ecdh-es-a192kw {:type :encrypt
                     :alg-field "ECDH-ES+A192KW"
                     :mk-obj
-                    (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A192KW))}
+                    com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A192KW}
    :ecdh-es-a256kw {:type :encrypt
                     :alg-field "ECDH-ES+A256KW"
                     :mk-obj
-                    (fn [] (com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A256KW))}
+                    com.nimbusds.jose.JWEAlgorithm/ECDH_ES_A256KW}
    :pbes2-hs256 {:type :encrypt
-                 :alg-field "PBES2-HS256+A128KW"
-                 :mk-obj
-                 (fn [] (ex-info "PBES2 not yet implemented." {}))}
+                 :alg-field "PBES2-HS256+A128KW"}
    :pbes2-hs384 {:type :encrypt
-                 :alg-field "PBES2-HS384+A192KW"
-                 :mk-obj
-                 (fn [] (ex-info "PBES2 not yet implemented." {}))}
+                 :alg-field "PBES2-HS384+A192KW"}
    :pbes2-hs512 {:type :encrypt
-                 :alg-field "PBES2-HS512+A256KW"
-                 :mk-obj
-                 (fn [] (ex-info "PBES2 not yet implemented." {}))}
+                 :alg-field "PBES2-HS512+A256KW"}
    :hs256 {:type :signing
            :alg-field "HS256"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/HS256))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/HS256}
    :hs384 {:type :signing
            :alg-field "HS384"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/HS384))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/HS384}
    :hs512 {:type :signing
            :alg-field "HS512"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/HS512))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/HS512}
    :es256 {:type :signing
            :alg-field "ES256"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/ES256))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/ES256}
    :es384 {:type :signing
            :alg-field "ES384"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/ES384))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/ES384}
    :es512 {:type :signing
            :alg-field "ES512"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/ES512))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/ES512}
    :ps256 {:type :signing
            :alg-field "PS256"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/PS256))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/PS256}
    :ps384 {:type :signing
            :alg-field "PS384"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/PS384))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/PS384}
    :ps512 {:type :signing
            :alg-field "PS512"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/PS512))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/PS512}
    :rs256 {:type :signing
            :alg-field "RS256"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/RS256))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/RS256}
    :rs384 {:type :signing
            :alg-field "RS384"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/RS384))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/RS384}
    :rs512 {:type :signing
            :alg-field "RS512"
-           :mk-obj (fn [] (com.nimbusds.jose.JWSAlgorithm/RS512))}
+           :mk-obj com.nimbusds.jose.JWSAlgorithm/RS512}
    :a128cbc-hs256 {:type :encoding
                    :alg-field "A128CBC-HS256"
                    :mk-obj
-                   (fn [] (com.nimbusds.jose.EncryptionMethod/A128CBC_HS256))}
+                   com.nimbusds.jose.EncryptionMethod/A128CBC_HS256}
    :a192cbc-hs384 {:type :encoding
                    :alg-field "A192CBC-HS384"
                    :mk-obj
-                   (fn [] (com.nimbusds.jose.EncryptionMethod/A192CBC_HS384))}
+                   com.nimbusds.jose.EncryptionMethod/A192CBC_HS384}
    :a256cbc-hs512 {:type :encoding
                    :alg-field "A256CBC-HS512"
                    :mk-obj
-                   (fn [] (com.nimbusds.jose.EncryptionMethod/A256CBC_HS512))}
+                   com.nimbusds.jose.EncryptionMethod/A256CBC_HS512}
    :a128gcm {:type :encoding
              :alg-field "A128GCM"
-             :mk-obj (fn [] (com.nimbusds.jose.EncryptionMethod/A128GCM))}
+             :mk-obj com.nimbusds.jose.EncryptionMethod/A128GCM}
    :a192gcm {:type :encoding
              :alg-field "A192GCM"
-             :mk-obj (fn [] (com.nimbusds.jose.EncryptionMethod/A192GCM))}
+             :mk-obj com.nimbusds.jose.EncryptionMethod/A192GCM}
    :a256gcm {:type :encoding
              :alg-field "A256GCM"
-             :mk-obj (fn [] (com.nimbusds.jose.EncryptionMethod/A256GCM))}})
+             :mk-obj com.nimbusds.jose.EncryptionMethod/A256GCM}})
 
 (defn algs-of-type
   [t]
@@ -145,7 +139,7 @@
 
 (defn mk-alg-obj
   [alg]
-  ((get-in alg-info [alg :mk-obj])))
+  (get-in alg-info [alg :mk-obj]))
 
 (defn mk-encrypt-alg
   [encrypt-alg]
