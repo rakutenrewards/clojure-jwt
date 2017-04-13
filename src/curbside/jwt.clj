@@ -226,16 +226,18 @@
   [{:keys [signing-alg encrypt-alg encrypt-enc jwt keys verifier]}]
   (let [jwk-set (JWKSet. (map k/map->JWK keys))
         key-source (ImmutableJWKSet. jwk-set)
-        sign-selector (JWSVerificationKeySelector.
-                        (u/mk-signing-alg signing-alg)
-                        key-source)
-        enc-selector (JWEDecryptionKeySelector.
-                       (u/mk-encrypt-alg encrypt-alg)
-                       (u/mk-encrypt-enc encrypt-enc)
-                       key-source)
-        processor (doto (DefaultJWTProcessor.)
-                    (.setJWSKeySelector sign-selector)
-                    (.setJWEKeySelector enc-selector))]
+        processor (DefaultJWTProcessor.)]
+    (when signing-alg
+      (.setJWSKeySelector processor
+                          (JWSVerificationKeySelector.
+                            (u/mk-signing-alg signing-alg)
+                            key-source)))
+    (when (and encrypt-alg encrypt-enc)
+      (.setJWEKeySelector processor
+                          (JWEDecryptionKeySelector.
+                            (u/mk-encrypt-alg encrypt-alg)
+                            (u/mk-encrypt-enc encrypt-enc)
+                            key-source)))
     (when verifier
       (.setJWTClaimsVerifier processor (make-verifier verifier)))
     (claims-set->map (.process processor jwt nil))))
