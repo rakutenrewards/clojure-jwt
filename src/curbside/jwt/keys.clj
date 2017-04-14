@@ -132,29 +132,25 @@
        (seq)
        (->> (map JWK->map)))))
 
-(defprotocol I->jwk-set
+(defprotocol IJWKSetConversion
   "Implemented for types that can be converted into a jwk-set."
-  (->jwk-set [x]))
+  (jwk-set [x]))
 
-(extend String
-  I->jwk-set
-  {:->jwk-set parse-jwk-set})
+(extend-protocol IJWKSetConversion
+  String
+    (jwk-set [x] (parse-jwk-set x))
 
-(extend File
-  I->jwk-set
-  {:->jwk-set load-jwk-set-from-file})
+  File
+    (jwk-set [x] (load-jwk-set-from-file x))
 
-(extend URL
-  I->jwk-set
-  {:->jwk-set load-jwk-set-from-url})
+  URL
+    (jwk-set [x] (load-jwk-set-from-url x))
 
-(extend PersistentArrayMap
-  I->jwk-set
-  {:->jwk-set (fn [x] [x])})
+  clojure.lang.IPersistentMap
+    (jwk-set [x] [x])
 
-(extend clojure.lang.IPersistentCollection
-  I->jwk-set
-  {:->jwk-set #(into [] %)})
+  clojure.lang.IPersistentCollection
+    (jwk-set [x] (into [] x)))
 
 (defn rsa-jwks
   "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
