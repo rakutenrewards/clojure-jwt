@@ -8,7 +8,8 @@
    (java.io File)
    (java.net URL)
    (java.security KeyPairGenerator SecureRandom)
-   (java.lang.Object)))
+   (java.lang Object String)
+   (clojure.lang PersistentArrayMap)))
 
 (defprotocol IOpaque
   (reveal [x]
@@ -131,17 +132,29 @@
        (seq)
        (->> (map JWK->map)))))
 
-(defn ->jwk-set
-  "Attempts to convert the input into a jwk-set by parsing a JSON string,
-   loading from a file or URL, converting from a single jwk, etc."
-  [x]
-  (cond
-    (string? x) (parse-jwk-set x)
-    (= File (type x)) (load-jwk-set-from-file x)
-    (= URL (type x)) (load-jwk-set-from-url x)
-    (and (map? x) (:kty x)) (cons x nil)
-    (coll? x) (into () x)
-    :else (ex-info (str "Can't convert " (type x) " into jwk-set.") {})))
+(defprotocol I->jwk-set
+  "Implemented for types that can be converted into a jwk-set."
+  (->jwk-set [x]))
+
+(extend String
+  I->jwk-set
+  {:->jwk-set parse-jwk-set})
+
+(extend File
+  I->jwk-set
+  {:->jwk-set load-jwk-set-from-file})
+
+(extend URL
+  I->jwk-set
+  {:->jwk-set load-jwk-set-from-url})
+
+(extend PersistentArrayMap
+  I->jwk-set
+  {:->jwk-set (fn [x] [x])})
+
+(extend clojure.lang.IPersistentCollection
+  I->jwk-set
+  {:->jwk-set #(into [] %)})
 
 (defn rsa-jwks
   "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
