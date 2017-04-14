@@ -8,7 +8,8 @@
    (java.io File)
    (java.net URL)
    (java.security KeyPairGenerator SecureRandom)
-   (java.lang.Object)))
+   (java.lang Object String)
+   (clojure.lang PersistentArrayMap)))
 
 (defprotocol IOpaque
   (reveal [x]
@@ -106,8 +107,8 @@
    censored."
   [path]
   (->> path
-       (File.)
-       (JWKSet/load)
+       (slurp)
+       (JWKSet/parse)
        (.getKeys)
        (seq)
        (map JWK->map)))
@@ -130,6 +131,26 @@
        (.getKeys)
        (seq)
        (->> (map JWK->map)))))
+
+(defprotocol IJWKSetConversion
+  "Implemented for types that can be converted into a jwk-set."
+  (jwk-set [x]))
+
+(extend-protocol IJWKSetConversion
+  String
+    (jwk-set [x] (parse-jwk-set x))
+
+  File
+    (jwk-set [x] (load-jwk-set-from-file x))
+
+  URL
+    (jwk-set [x] (load-jwk-set-from-url x))
+
+  clojure.lang.IPersistentMap
+    (jwk-set [x] [x])
+
+  clojure.lang.IPersistentCollection
+    (jwk-set [x] (into [] x)))
 
 (defn rsa-jwks
   "Generate a lazy sequence of new JWK RSA keypairs. Config can be:
