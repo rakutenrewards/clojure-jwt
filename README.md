@@ -13,9 +13,13 @@ FIXME
 2. Set the environment variables ARTIFACTORY_PASS and ARTIFACTORY_USER.
 3. Update the version of the library in `project.clj`.
 4. Run `lein deploy`.
-5. Create and push a branch corresponding to the release. For example, if you
-   just released version 0.5.0, create a branch `v0.5.0` and push it to the
-   upstream repository.
+5. Create and push a signed tag corresponding to the release. For example, if
+   you just released version 0.5.0, do:
+   ```git tag -s v0.5.0
+      git push upstream v0.5.0
+      ```
+   Read [this](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) for
+   details.
 
 ## License
 
