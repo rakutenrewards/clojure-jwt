@@ -5,8 +5,7 @@
    [clojure.string :as str]
    [cheshire.core :as json]
    [curbside.jwt.keys :as k]
-   [curbside.jwt.util :as u]
-   [clojure.tools.trace :as trace])
+   [curbside.jwt.util :as u])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
                       EncryptionMethod JWEHeader JOSEException JWEObject)
