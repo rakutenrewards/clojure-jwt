@@ -51,7 +51,7 @@
         add-claim (fn [builder k v]
                     (if (contains? def-claims k)
                       ((def-claims k) builder v)
-                      (.claim builder (name k) v)))]
+                      (.claim builder (name k) (name v))))]
     (.build
      (reduce-kv add-claim (com.nimbusds.jwt.JWTClaimsSet$Builder.) claims))))
 
