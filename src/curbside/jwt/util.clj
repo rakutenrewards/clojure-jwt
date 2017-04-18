@@ -186,6 +186,6 @@
 
 (defn base64decode
   [s]
-  (->> s
-       (.decode (Base64/getUrlDecoder))
-       (String.)))
+  (as-> s $
+       (.decode (Base64/getUrlDecoder) $)
+       (String. $ "UTF-8")))
