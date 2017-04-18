@@ -232,6 +232,22 @@
   (testing "rejects unsecured / plain JWTs")
   (testing "rejects downgraded crypto attacks")))
 
+(deftest test-unsafe-parse
+  (let [claims {:foo "bar"}
+        encoded (sign-claims claims)
+        [header decoded-claims sig] (unsafe-parse-serialized encoded)]
+    (testing "header decoded as map"
+      (is (map? header)))
+    (testing "claims decoded"
+      (is (= decoded-claims claims)))
+    (testing "parsing raw data of encrypted JWT reveals header"
+      (let [alg :rsa-oaep-256
+            enc :a128gcm
+            encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                    :claims std-claims :encrypt-key rsa-jwk})
+            [header _ _ _ _] (unsafe-parse-serialized encrypted)]
+        (is (map? header))))))
+
 ;; property-based tests
 (deftest prop-encrypt-jwt
   (is (every? (comp nil? :failure)
