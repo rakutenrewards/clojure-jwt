@@ -10,7 +10,8 @@
                              ECDHEncrypter RSADecrypter AESDecrypter
                              DirectDecrypter ECDHDecrypter)
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
-   (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)))
+   (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
+   (java.util Base64)))
 
 (def alg-info
   {:dir {:type :encrypt
@@ -182,3 +183,9 @@
      (case signing-alg
        (:es256 :es384 :es512) (mk-ec-header signing-alg-obj ec-key-id)
        (JWSHeader. signing-alg-obj)))))
+
+(defn base64decode
+  [s]
+  (->> s
+       (.decode (Base64/getUrlDecoder))
+       (String.)))

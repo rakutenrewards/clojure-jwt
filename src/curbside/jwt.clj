@@ -19,7 +19,23 @@
    (com.nimbusds.jose.jwk.source ImmutableJWKSet)
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
    (com.nimbusds.jose.proc JWSVerificationKeySelector JWEDecryptionKeySelector)
-   (com.nimbusds.jwt.proc DefaultJWTProcessor DefaultJWTClaimsVerifier)))
+   (com.nimbusds.jwt.proc DefaultJWTProcessor DefaultJWTClaimsVerifier)
+   (com.fasterxml.jackson.core JsonParseException)))
+
+(defn unsafe-parse-serialized
+  "Parses a serialized JWT into its constituent parts between the dots, base64
+   decodes them, and returns them as strings or maps depending on whether they
+   can be understood without being decrypted, like the parser on jwt.io.
+   Performs NO validation! You probably don't need this function."
+  [jwt]
+  (let [parts (str/split jwt #"\.")
+        parse-json-or-nil (fn [x] (try
+                                    (json/decode x true)
+                                    (catch JsonParseException _ nil)))
+        parse-or-const (fn [x] (if-let [parsed (parse-json-or-nil x)]
+                                 parsed
+                                 x))]
+    (map (comp parse-or-const u/base64decode) parts)))
 
 (defn- map->claims-set
   [claims]
