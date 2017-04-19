@@ -12,7 +12,8 @@
             [clojure.java.io :as io])
   (:import
    (com.nimbusds.jose JOSEException)
-   (com.nimbusds.jose.proc BadJWEException)))
+   (com.nimbusds.jose.proc BadJWEException)
+   (com.nimbusds.jose.proc BadJOSEException)))
 
 ;; enforce spec on these functions when running unit tests
 (stest/instrument `encrypt-jwt)
@@ -44,7 +45,7 @@
 
 (deftest test-sign-rsa
   (let [verify (fn [] (sign-unsign std-claims std-claims nil))]
-    (is (map? (verify))) "Expecting the claims we used as input succeeds."))
+    (is (= std-claims (verify))) "Expecting the claims we used as input succeeds."))
 
 (deftest unexpected-signature
   (let [signed (sign-claims std-claims)
@@ -231,6 +232,33 @@
 
   (testing "rejects unsecured / plain JWTs")
   (testing "rejects downgraded crypto attacks")))
+
+(defn- make-verifier [expected]
+  (fn [{:keys [iss aud]}]
+    (and (= iss (:iss expected))
+         (contains? aud (:aud expected)))))
+
+(deftest test-nest-unsign-fails
+  (let [signing-alg :rs256
+        encrypt-alg :rsa-oaep
+        encrypt-enc :a256gcm
+        claims {:iss "https://auth.curbside.com"
+                :aud "https://api.curbside.com"
+                :sub "1234"}
+        [sign-key enc-key] (take 2 (keys/rsa-jwks {:key-len 2048}))
+        nested (nest-jwt {:signing-alg signing-alg
+                          :encrypt-alg encrypt-alg
+                          :encrypt-enc encrypt-enc
+                          :claims claims
+                          :signing-key sign-key
+                          :encrypt-key enc-key})
+        unsign (fn [] (unsign-jwt {:signing-alg signing-alg
+                                   :serialized-jwt nested
+                                   :unsigning-key sign-key
+                                   :verifier (make-verifier
+                                              {:iss "https://auth.curbside.com"
+                                               :aud "https://api.curbside.com"})}))]
+    (is (thrown? BadJOSEException (unsign)))))
 
 ;; property-based tests
 (deftest prop-encrypt-jwt
