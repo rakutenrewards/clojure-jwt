@@ -89,9 +89,14 @@
   (some #(= opaque-str (.toString %)) (vals jwk-map)))
 
 (defn ->public
-  "Extract public JWK map from a JWK map containing private key information."
+  "Extract public JWK map from a JWK map containing private key information.
+   Returns nil if the key is symmetric (and thus there is no public key to
+   extract)."
   [jwk-map]
-  (filter-kv (fn [k v] (not (= opaque-str (.toString v)))) jwk-map))
+  (some-> jwk-map
+      (map->JWK)
+      (.toPublicJWK)
+      (JWK->map)))
 
 (defn parse-jwk-set
   "Parse a JWK set from a JSON string"
