@@ -149,6 +149,12 @@
     (is (keys/private? jwk))
     (is (not (keys/private? (keys/->public jwk))))))
 
+(deftest test->public
+  (let [rsa-jwk (first (keys/rsa-jwks {:key-len 2048}))
+        sym-jwk (first (keys/symmetric-keys {:key-len 256 :alg :rs256}))]
+    (is (map? (keys/->public rsa-jwk)) "Public RSA key extracted")
+    (is (nil? (keys/->public sym-jwk)) "No public key for a symmetric key")))
+
 (deftest test-process-jwt
   (let [nest (fn [claims]
                (nest-jwt
