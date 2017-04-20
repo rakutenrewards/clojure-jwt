@@ -38,7 +38,7 @@
 
 (defn- map->claims-set
   [claims]
-  (let [stringify-if-keyword (fn [x] (if (= clojure.lang.Keyword (type x))
+  (let [stringify-if-keyword (fn [x] (if (keyword? x)
                                          (name x)
                                          x))
         def-claims {:sub (fn [x y] (.subject x y))
