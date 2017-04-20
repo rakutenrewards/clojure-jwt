@@ -38,7 +38,10 @@
 
 (defn- map->claims-set
   [claims]
-  (let [def-claims {:sub (fn [x y] (.subject x y))
+  (let [stringify-if-keyword (fn [x] (if (keyword? x)
+                                         (name x)
+                                         x))
+        def-claims {:sub (fn [x y] (.subject x y))
                     :aud (fn [x y] (if (string? y)
                                      (.audience x y)
                                      (.audience x (vec y))))
@@ -50,7 +53,7 @@
         add-claim (fn [builder k v]
                     (if (contains? def-claims k)
                       ((def-claims k) builder v)
-                      (.claim builder (name k) (name v))))]
+                      (.claim builder (name k) (stringify-if-keyword v))))]
     (.build
      (reduce-kv add-claim (com.nimbusds.jwt.JWTClaimsSet$Builder.) claims))))
 
