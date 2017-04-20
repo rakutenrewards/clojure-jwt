@@ -46,6 +46,11 @@
   (let [verify (fn [] (sign-unsign std-claims std-claims nil))]
     (is (map? (verify))) "Expecting the claims we used as input succeeds."))
 
+(deftest test-nested-map-claims
+  (let [nested-map {:a {:b :c}}
+        verify (fn [] (sign-unsign nested-map nested-map nil))]
+    (is (map? (verify)))))
+
 (deftest unexpected-signature
   (let [signed (sign-claims std-claims)
         wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))
