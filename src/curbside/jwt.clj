@@ -46,13 +46,13 @@
                     :iss (fn [x y] (.issuer x y))
                     :iat (fn [x y] (.issueTime x (time-coerce/to-date y)))
                     :jti (fn [x y] (.jwtID x y))
-                    :nbf (fn [x y] (.notBeforeTime x (time-coerce/to-date y)))}
-        add-claim (fn [builder k v]
-                    (if (contains? def-claims k)
-                      ((def-claims k) builder v)
-                      (.claim builder (name k) (name v))))]
-    (.build
-     (reduce-kv add-claim (com.nimbusds.jwt.JWTClaimsSet$Builder.) claims))))
+                    :nbf (fn [x y] (.notBeforeTime x (time-coerce/to-date y)))}]
+    (u/map->builder-w-defaults
+      #(com.nimbusds.jwt.JWTClaimsSet$Builder.)
+      #(.build %)
+      #(.claim %1 %2 %3)
+      def-claims
+      claims)))
 
 (defn- numeric-date->date-time
   "JWT uses NumericDate, which is seconds since the epoch. clj-time, however,
@@ -86,9 +86,9 @@
 
 
 (defn sign-jwt
-  [{:keys [signing-alg claims signing-key ec-key-id]}]
+  [{:keys [signing-alg claims signing-key ec-key-id addl-header-fields]}]
   (let [signer (mk-signer signing-alg signing-key)
-        header (u/mk-sign-header signing-alg ec-key-id)
+        header (u/mk-sign-header signing-alg addl-header-fields)
         claims-set (map->claims-set claims)
         signed-jwt (doto (SignedJWT. header claims-set)
                          (.sign signer))]
@@ -118,10 +118,11 @@
     ))
 
 (defn encrypt-jwt
-  [{:keys [encrypt-alg encrypt-enc claims encrypt-key] :as config}]
+  [{:keys [encrypt-alg encrypt-enc claims encrypt-key addl-header-fields]
+    :as config}]
   (let [encrypter (mk-encrypter encrypt-alg encrypt-key)
         claims-set (map->claims-set claims)
-        header (u/mk-encrypt-header encrypt-alg encrypt-enc)
+        header (u/mk-encrypt-header encrypt-alg encrypt-enc addl-header-fields)
         encrypted-jwt (doto (EncryptedJWT. header claims-set)
                             (.encrypt encrypter))]
     (.serialize encrypted-jwt)))
@@ -186,7 +187,8 @@
 
 (defn nest-jwt
   "Sign and then encrypt a nested JWT"
-  [{:keys [signing-alg encrypt-alg encrypt-enc claims signing-key encrypt-key]}]
+  [{:keys [signing-alg encrypt-alg encrypt-enc claims signing-key encrypt-key
+           addl-header-fields]}]
   (let [signer (mk-signer signing-alg signing-key)
         claims-set (map->claims-set claims)
         sign-header (u/mk-sign-header signing-alg)
@@ -194,10 +196,8 @@
                      (.sign signer))
         encrypt-alg-obj (u/mk-encrypt-alg encrypt-alg)
         encrypt-enc-obj (u/mk-encrypt-enc encrypt-enc)
-        encrypt-header (-> (com.nimbusds.jose.JWEHeader$Builder.
-                            encrypt-alg-obj encrypt-enc-obj)
-                           (.contentType "JWT")
-                           (.build))
+        encrypt-header (u/mk-encrypt-header encrypt-alg encrypt-enc
+                         (assoc addl-header-fields :cty "JWT"))
         payload (Payload. signed)
         encrypter (mk-encrypter encrypt-alg encrypt-key)
         encrypted-jwe (doto (JWEObject. encrypt-header payload)

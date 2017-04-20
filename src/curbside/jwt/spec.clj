@@ -50,6 +50,8 @@
 
 (s/def ::verifier #(or (fn? %) (nil? %)))
 
+(s/def ::addl-header-fields map?)
+
 (defn gen-encrypt-key
   [encrypt-alg]
   ;TODO: implement non-rsa test cases!
@@ -78,7 +80,8 @@
 
 (s/def ::encrypt-jwt-config
   (s/with-gen
-    (s/and (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key])
+    (s/and (s/keys :req-un [::encrypt-alg ::encrypt-enc ::claims ::encrypt-key]
+                   :opt-un [::addl-header-fields])
            alg-supports-enc?)
     gen-encrypt-jwt-config))
 
@@ -88,7 +91,8 @@
           :opt-un [::verifier]))
 
 (s/def ::sign-jwt-config
-  (s/and (s/keys :req-un [::signing-alg ::claims ::signing-key])
+  (s/and (s/keys :req-un [::signing-alg ::claims ::signing-key]
+                 :opt-un [::addl-header-fields])
          (fn [config]
            (or (not (some #(= % (:signing-alg config))
                           [:es256 :es384 :es512]))
@@ -100,7 +104,8 @@
 
 (s/def ::nest-jwt-config
   (s/keys :req-un [::signing-alg ::encrypt-alg ::encrypt-enc ::claims
-                   ::signing-key ::encrypt-key]))
+                   ::signing-key ::encrypt-key]
+          :opt-un [::addl-header-fields]))
 
 (s/def ::unnest-jwt-config
   (s/keys :req-un [::signing-alg ::encrypt-alg ::serialized-jwt ::unsigning-key
