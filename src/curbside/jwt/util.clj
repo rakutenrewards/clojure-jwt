@@ -13,8 +13,6 @@
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
    (java.util Base64)
-   (java.net URI)
-   (com.nimbusds.jose.util Base64URL)
    (com.nimbusds.jose.util.Base64)))
 
 (def alg-info
@@ -166,28 +164,9 @@
   [alg]
   (contains? signing-algs alg))
 
-(defn- not-impl!
+(defn not-impl!
   [expl]
   (throw (ex-info "Functionality not implemented." {:explanation expl})))
-
-(def header-builder-fields
-  {:apu (fn [obj v] (.agreementPartyUInfo obj (Base64URL. v)))
-   :apv (fn [obj v] (.agreementPartyVInfo obj (Base64URL. v)))
-   :tag (fn [obj v] (.authTag obj (Base64URL. v)))
-   :zip (fn [obj v] (.compressionAlgorithm obj (CompressionAlgorithm. v)))
-   :cty (fn [obj v] (.contentType obj v))
-   :epk (fn [obj v] (.ephemeralPublicKey obj (not-impl! "epk header param")))
-   :iv (fn [obj v] (.iv obj (Base64URL. v)))
-   :jku (fn [obj v] (.jwkURL obj (URI. v)))
-   :kid (fn [obj v] (.keyID obj v))
-   :p2c (fn [obj v] (.pbes2Count obj v))
-   :p2s (fn [obj v] (.pbes2Salt obj (Base64URL. v)))
-   :typ (fn [obj v] (.type obj (not-impl! ":typ header param")))
-   :x5c (fn [obj v] (.x509CertChain obj
-                      (map #(com.nimbusds.jose.util.Base64. %) v)))
-   :x5t#S256 (fn [obj v] (.x509CertSHA256Thumbprint obj (Base64URL. v)))
-   :x5t (fn [obj v] (.x509CertURL obj (URI. v)))
-   :jwk (fn [obj v] (.jwk obj v))})
 
 (defn map->builder-w-defaults
   [builder-constructor build-fn custom-field-fn field-defaults fields]
@@ -201,38 +180,6 @@
                                        (name k)
                                        (stringify-if-keyword v))))]
     (build-fn (reduce-kv add-field (builder-constructor) fields))))
-
-(defn mk-encrypt-header
-  ([encrypt-alg encrypt-enc]
-   (mk-encrypt-header encrypt-alg encrypt-enc {}))
-  ([encrypt-alg encrypt-enc addl-header-fields]
-   (let [alg-obj (mk-encrypt-alg encrypt-alg)
-         enc-obj (mk-encrypt-enc encrypt-enc)]
-     (map->builder-w-defaults
-       #(com.nimbusds.jose.JWEHeader$Builder. alg-obj enc-obj)
-       #(.build %)
-       #(.customParam %1 %2 %3)
-       header-builder-fields
-       addl-header-fields))))
-
-(defn mk-ec-header
-  [signing-alg-obj ec-key-id]
-  (-> signing-alg-obj
-      (com.nimbusds.jose.JWSHeader$Builder.)
-      (.keyID)
-      (.build)))
-
-(defn mk-sign-header
-  ([signing-alg]
-    (mk-sign-header signing-alg {}))
-  ([signing-alg addl-header-fields]
-    (let [signing-alg-obj (mk-signing-alg signing-alg)]
-      (map->builder-w-defaults
-       #(com.nimbusds.jose.JWSHeader$Builder. signing-alg-obj)
-       #(.build %)
-       #(.customParam %1 %2 %3)
-       header-builder-fields
-       addl-header-fields))))
 
 (defn base64decode
   [s]
