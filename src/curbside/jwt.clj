@@ -242,16 +242,16 @@
 (defn nest-jwt
   "Sign and then encrypt a nested JWT"
   [{:keys [signing-alg encrypt-alg encrypt-enc claims signing-key encrypt-key
-           addl-header-fields]}]
+           addl-enc-header-fields addl-sign-header-fields]}]
   (let [signer (mk-signer signing-alg signing-key)
         claims-set (map->claims-set claims)
-        sign-header (mk-sign-header signing-alg)
+        sign-header (mk-sign-header signing-alg addl-sign-header-fields)
         signed (doto (SignedJWT. sign-header claims-set)
                      (.sign signer))
         encrypt-alg-obj (u/mk-encrypt-alg encrypt-alg)
         encrypt-enc-obj (u/mk-encrypt-enc encrypt-enc)
         encrypt-header (mk-encrypt-header encrypt-alg encrypt-enc
-                         (assoc addl-header-fields :cty "JWT"))
+                         (assoc addl-enc-header-fields :cty "JWT"))
         payload (Payload. signed)
         encrypter (mk-encrypter encrypt-alg encrypt-key)
         encrypted-jwe (doto (JWEObject. encrypt-header payload)

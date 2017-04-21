@@ -52,6 +52,10 @@
 
 (s/def ::addl-header-fields map?)
 
+(s/def ::addl-enc-header-fields map?)
+
+(s/def ::addl-sign-header-fields map?)
+
 (defn gen-encrypt-key
   [encrypt-alg]
   ;TODO: implement non-rsa test cases!
@@ -105,7 +109,7 @@
 (s/def ::nest-jwt-config
   (s/keys :req-un [::signing-alg ::encrypt-alg ::encrypt-enc ::claims
                    ::signing-key ::encrypt-key]
-          :opt-un [::addl-header-fields]))
+          :opt-un [::addl-sign-header-fields ::addl-enc-header-fields]))
 
 (s/def ::unnest-jwt-config
   (s/keys :req-un [::signing-alg ::encrypt-alg ::serialized-jwt ::unsigning-key
