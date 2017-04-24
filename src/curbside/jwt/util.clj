@@ -1,5 +1,5 @@
 (ns curbside.jwt.util
-  (:require [medley.core :refer [filter-kv]])
+  (:require [medley.core :refer [filter-kv map-kv]])
   (:import
    (java.util UUID)
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
@@ -132,6 +132,11 @@
 (defn alg-field-str
   [alg]
   (get-in alg-info [alg :alg-field]))
+
+(def alg-string->alg-keyword
+ (let [string->kw
+       (into {} (map-kv (fn [k v] [(:alg-field v) k]) alg-info))]
+   (fn [alg-str] (get string->kw alg-str))))
 
 (defn uuids
   []

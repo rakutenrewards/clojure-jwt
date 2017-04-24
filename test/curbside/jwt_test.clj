@@ -9,7 +9,8 @@
             ;clojure.test.check is unused, but if it's not included,
             ;stest/check throws an incomprehensible exception.
             [clojure.test.check :as tc]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [cheshire.core :as json])
   (:import
    (com.nimbusds.jose JOSEException)
    (com.nimbusds.jose.proc BadJWEException)
@@ -44,8 +45,14 @@
   (unsign-claims (sign-claims claims) exp-claims verifier))
 
 (deftest test-sign-rsa
-  (let [verify (fn [] (sign-unsign std-claims std-claims nil))]
-    (is (= std-claims (verify))) "Expecting the claims we used as input succeeds."))
+  (let [verify (fn [] (sign-unsign std-claims std-claims nil))
+        verify-fail (fn [] (sign-unsign std-claims std-claims
+                                        (constantly {:verified? false
+                                                     :details {:bad :bad}})))]
+    (is (= std-claims (verify)))
+    (try
+      (verify-fail)
+      (catch Exception e (is (= :bad (:bad (ex-data e))))))))
 
 (deftest test-nested-map-claims
   (let [nested-map {:a {:b :c}}
@@ -172,7 +179,7 @@
 
         process (fn process
                   ([jwt]
-                   (process jwt (constantly true)))
+                   (process jwt (constantly {:verified? true})))
                   ([jwt verifier]
                    (process-jwt
                      {:signing-alg :rs256
@@ -199,24 +206,29 @@
                             :nbf (t/plus (t/now) (t/days 7))))))))
 
   (testing "allows custom claims verification"
-    (is (= {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"}
-           (process (nest std-claims)
-                    (fn [claims-set]
+    (let [verifier (fn [claims-set]
+                     {:verified?
                       (and (= (:iss claims-set) "curbside.com")
-                           (contains? (:aud claims-set) "curbside.com"))))))
+                           (contains? (:aud claims-set) "curbside.com"))
+                      :details "iss and aud didn't both match"})
+          bad-verifier (fn [claims-set]
+                         {:verified? (and (= (:iss claims-set) "blurbside.com")
+                                          (contains? (:aud claims-set) "bopis"))
+                          :details {:iss "not blurbside.com"}})]
 
-    (is (thrown? Exception
-                 (process (nest (assoc std-claims
-                                       :exp (t/minus (t/now) (t/days 7))))
-                          (fn [claims-set]
-                            (and (= (:iss claims-set) "curbside.com")
-                                 (contains? (:aud claims-set) "curbside.com"))))))
 
-    (is (thrown? Exception
-                 (process (nest std-claims)
-                          (fn [claims-set]
-                            (and (= (:iss claims-set) "blurbside.com")
-                                 (contains? (:aud claims-set) "bopis")))))))
+      (is (= {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"}
+             (process (nest std-claims)
+                      verifier)))
+
+      (is (thrown? Exception
+                   (process (nest (assoc std-claims
+                                         :exp (t/minus (t/now) (t/days 7))))
+                            verifier)))
+
+      (is (thrown? Exception
+                   (process (nest std-claims)
+                            bad-verifier)))))
 
 
   (testing "accepts signed JWTs"
@@ -246,8 +258,8 @@
 
 (defn- make-verifier [expected]
   (fn [{:keys [iss aud]}]
-    (and (= iss (:iss expected))
-         (contains? aud (:aud expected)))))
+    {:verified? (and (= iss (:iss expected))
+                     (contains? aud (:aud expected)))}))
 
 (deftest test-nest-unsign-fails
   (let [signing-alg :rs256
@@ -329,6 +341,23 @@
         (is (encrypt-jwt {:claims std-claims :encrypt-alg alg
                           :encrypt-enc enc :encrypt-key rsa-jwk
                           :addl-header-fields many-fields}))))))
+
+(deftest test-jwk-alg-enc-keywords
+  (let [with-alg (assoc rsa-jwk :alg :rsa-oaep :enc :rs256)
+        json-map (json/decode (keys/->json-jwk with-alg) true)
+        nimbus-jwk (keys/map->JWK with-alg)
+        json-nimbus-map (json/decode (.toJSONString nimbus-jwk) true)
+        jwk (keys/JWK->map nimbus-jwk)
+        ]
+    (testing "After conversion to JSON, :alg field has been translated from
+              our keyword to the standard string"
+      (is (= "RSA-OAEP" (:alg json-map))))
+    (testing "After converting our JWK map to a Nimbus object, the algorithm
+              field is set correctly"
+      (is (= "RSA-OAEP" (.getName (.getAlgorithm nimbus-jwk)))))
+    (testing "After converting Nimbus JWK to map, :alg field is once again a
+              keyword"
+      (is (= :rsa-oaep (:alg jwk))))))
 
 ;; property-based tests
 (deftest prop-encrypt-jwt

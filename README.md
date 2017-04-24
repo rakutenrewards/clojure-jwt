@@ -11,16 +11,9 @@ FIXME
 1. Retrieve Artifactory credentials from the ops bundle in
    https://github.com/Curbside/secrets
 2. Set the environment variables ARTIFACTORY_PASS and ARTIFACTORY_USER.
-3. Update the version of the library in `project.clj`.
-4. Run `lein deploy`.
-5. Create and push a signed tag corresponding to the release. For example, if
-   you just released version 0.5.0, do:
-   ```
-   git tag -s v0.5.0
-   git push upstream v0.5.0
-   ```
-   Read [this](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) for
-   details.
+3. Make sure that pgp-agent has your password cached so that you can sign stuff without being prompted.
+4. Make sure you are on the master branch, its remote branch is set to the primary repo (https://github.com/Curbside/curbside-jwt/), and your local branch is up to date.
+5. Run `lein release :patch`. Replace `:patch` with `:minor` or `:major` as needed. This determines which of the version numbers will be changed in `project.clj` (the version number format is MAJOR.MINOR.PATCH).
 
 ## License
 

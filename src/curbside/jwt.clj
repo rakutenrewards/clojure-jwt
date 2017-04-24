@@ -206,8 +206,9 @@
   (proxy [DefaultJWTClaimsVerifier] []
     (verify [claims]
             (proxy-super verify claims)
-            (when-not (verifier (claims-set->map claims))
-              (throw (Exception. "Verification failed"))))))
+            (let [result (verifier (claims-set->map claims))]
+              (when (not (:verified? result))
+                (throw (ex-info "Verification failed" (:details result))))))))
 
 (defn process-jwt
   [{:keys [signing-alg encrypt-alg encrypt-enc jwt keys verifier]}]
@@ -230,11 +231,18 @@
     (claims-set->map (.process processor jwt nil))))
 
 (defn decrypt-jwt
+  "Decrypts a JWE. verifier is an optional function that takes a map of claims
+   and returns a map with keys:
+   - :verified? -- true iff the claims can be verified
+   - :details  -- a map of any error details you wish to include in an exception
+                  when verification fails."
   [{:keys [encrypt-alg encrypt-enc serialized-jwt decrypt-key verifier]}]
   (process-jwt {:encrypt-alg encrypt-alg :encrypt-enc encrypt-enc
                 :jwt serialized-jwt :keys [decrypt-key] :verifier verifier}))
 
 (defn unsign-jwt
+  "Verifies the signature of a JWS. See the docs for decrypt-jwt for details
+   on the optional verifier param."
   [{:keys [signing-alg serialized-jwt unsigning-key verifier]}]
   (process-jwt {:signing-alg signing-alg :jwt serialized-jwt
                 :keys [unsigning-key] :verifier verifier}))
@@ -259,6 +267,7 @@
     (.serialize encrypted-jwe)))
 
 (defn unnest-jwt
+  "Decrypt and then verify the signature of a nested JWT."
   [{:keys [signing-alg encrypt-alg encrypt-enc serialized-jwt unsigning-key
            decrypt-key verifier]}]
   (process-jwt {:signing-alg signing-alg :encrypt-alg encrypt-alg
