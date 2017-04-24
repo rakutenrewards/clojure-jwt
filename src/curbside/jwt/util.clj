@@ -3,7 +3,8 @@
   (:import
    (java.util UUID)
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
-                      EncryptionMethod JWEHeader JOSEException JWEObject)
+                      EncryptionMethod JWEHeader JOSEException JWEObject
+                      CompressionAlgorithm)
    (com.nimbusds.jose.crypto MACSigner RSASSASigner ECDSASigner
                              MACVerifier RSASSAVerifier ECDSAVerifier
                              RSAEncrypter AESEncrypter DirectEncrypter
@@ -11,7 +12,8 @@
                              DirectDecrypter ECDHDecrypter)
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
-   (java.util Base64)))
+   (java.util Base64)
+   (com.nimbusds.jose.util.Base64)))
 
 (def alg-info
   {:dir {:type :encrypt
@@ -167,27 +169,22 @@
   [alg]
   (contains? signing-algs alg))
 
-(defn mk-encrypt-header
-  [encrypt-alg encrypt-enc]
-  (let [alg-obj (mk-encrypt-alg encrypt-alg)
-        enc-obj (mk-encrypt-enc encrypt-enc)]
-    (JWEHeader. alg-obj enc-obj)))
+(defn not-impl!
+  [expl]
+  (throw (ex-info "Functionality not implemented." {:explanation expl})))
 
-(defn mk-ec-header
-  [signing-alg-obj ec-key-id]
-  (-> signing-alg-obj
-      (com.nimbusds.jose.JWSHeader$Builder.)
-      (.keyID)
-      (.build)))
-
-(defn mk-sign-header
-  ([signing-alg]
-   (mk-sign-header signing-alg nil))
-  ([signing-alg ec-key-id]
-   (let [signing-alg-obj (mk-signing-alg signing-alg)]
-     (case signing-alg
-       (:es256 :es384 :es512) (mk-ec-header signing-alg-obj ec-key-id)
-       (JWSHeader. signing-alg-obj)))))
+(defn map->builder-w-defaults
+  [builder-constructor build-fn custom-field-fn field-defaults fields]
+  (let [stringify-if-keyword (fn [x] (if (keyword? x)
+                                         (name x)
+                                         x))
+        add-field (fn [builder k v]
+                    (if (contains? field-defaults k)
+                      ((field-defaults k) builder v)
+                      (custom-field-fn builder
+                                       (name k)
+                                       (stringify-if-keyword v))))]
+    (build-fn (reduce-kv add-field (builder-constructor) fields))))
 
 (defn base64decode
   [s]

@@ -8,7 +8,8 @@
    [curbside.jwt.util :as u])
   (:import
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
-                      EncryptionMethod JWEHeader JOSEException JWEObject)
+                      EncryptionMethod JWEHeader JOSEException JWEObject
+                      CompressionAlgorithm)
    (com.nimbusds.jose.crypto MACSigner RSASSASigner ECDSASigner
                              MACVerifier RSASSAVerifier ECDSAVerifier
                              RSAEncrypter AESEncrypter DirectEncrypter
@@ -19,7 +20,9 @@
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
    (com.nimbusds.jose.proc JWSVerificationKeySelector JWEDecryptionKeySelector)
    (com.nimbusds.jwt.proc DefaultJWTProcessor DefaultJWTClaimsVerifier)
-   (com.fasterxml.jackson.core JsonParseException)))
+   (com.fasterxml.jackson.core JsonParseException)
+   (com.nimbusds.jose.util Base64URL)
+   (java.net URI)))
 
 (defn unsafe-parse-serialized
   "Parses a serialized JWT into its constituent parts between the dots, base64
@@ -38,10 +41,7 @@
 
 (defn- map->claims-set
   [claims]
-  (let [stringify-if-keyword (fn [x] (if (keyword? x)
-                                         (name x)
-                                         x))
-        def-claims {:sub (fn [x y] (.subject x y))
+  (let [def-claims {:sub (fn [x y] (.subject x y))
                     :aud (fn [x y] (if (string? y)
                                      (.audience x y)
                                      (.audience x (vec y))))
@@ -49,13 +49,13 @@
                     :iss (fn [x y] (.issuer x y))
                     :iat (fn [x y] (.issueTime x (time-coerce/to-date y)))
                     :jti (fn [x y] (.jwtID x y))
-                    :nbf (fn [x y] (.notBeforeTime x (time-coerce/to-date y)))}
-        add-claim (fn [builder k v]
-                    (if (contains? def-claims k)
-                      ((def-claims k) builder v)
-                      (.claim builder (name k) (stringify-if-keyword v))))]
-    (.build
-     (reduce-kv add-claim (com.nimbusds.jwt.JWTClaimsSet$Builder.) claims))))
+                    :nbf (fn [x y] (.notBeforeTime x (time-coerce/to-date y)))}]
+    (u/map->builder-w-defaults
+      #(com.nimbusds.jwt.JWTClaimsSet$Builder.)
+      #(.build %)
+      #(.claim %1 %2 %3)
+      def-claims
+      claims)))
 
 (defn- numeric-date->date-time
   "JWT uses NumericDate, which is seconds since the epoch. clj-time, however,
@@ -88,10 +88,61 @@
     (ECDSASigner. (.getS (k/map->JWK signing-key)))))
 
 
+(def header-builder-fields
+  {:apu (fn [obj v] (.agreementPartyUInfo obj (Base64URL. v)))
+   :apv (fn [obj v] (.agreementPartyVInfo obj (Base64URL. v)))
+   :tag (fn [obj v] (.authTag obj (Base64URL. v)))
+   :zip (fn [obj v] (.compressionAlgorithm obj (CompressionAlgorithm. v)))
+   :cty (fn [obj v] (.contentType obj v))
+   :epk (fn [obj v] (.ephemeralPublicKey obj (u/not-impl! "epk header param")))
+   :iv (fn [obj v] (.iv obj (Base64URL. v)))
+   :jku (fn [obj v] (.jwkURL obj (URI. v)))
+   :kid (fn [obj v] (.keyID obj v))
+   :p2c (fn [obj v] (.pbes2Count obj v))
+   :p2s (fn [obj v] (.pbes2Salt obj (Base64URL. v)))
+   :typ (fn [obj v] (.type obj (u/not-impl! ":typ header param")))
+   :x5c (fn [obj v] (.x509CertChain obj
+                                    (map #(com.nimbusds.jose.util.Base64. %) v)))
+   :x5t#S256 (fn [obj v] (.x509CertSHA256Thumbprint obj (Base64URL. v)))
+   :x5t (fn [obj v] (.x509CertURL obj (URI. v)))
+   :jwk (fn [obj v] (.jwk obj v))})
+
+(defn mk-encrypt-header
+  ([encrypt-alg encrypt-enc]
+   (mk-encrypt-header encrypt-alg encrypt-enc {}))
+  ([encrypt-alg encrypt-enc addl-header-fields]
+   (let [alg-obj (u/mk-encrypt-alg encrypt-alg)
+         enc-obj (u/mk-encrypt-enc encrypt-enc)]
+     (u/map->builder-w-defaults
+       #(com.nimbusds.jose.JWEHeader$Builder. alg-obj enc-obj)
+       #(.build %)
+       #(.customParam %1 %2 %3)
+       header-builder-fields
+       addl-header-fields))))
+
+(defn mk-ec-header
+  [signing-alg-obj ec-key-id]
+  (-> signing-alg-obj
+      (com.nimbusds.jose.JWSHeader$Builder.)
+      (.keyID)
+      (.build)))
+
+(defn mk-sign-header
+  ([signing-alg]
+   (mk-sign-header signing-alg {}))
+  ([signing-alg addl-header-fields]
+   (let [signing-alg-obj (u/mk-signing-alg signing-alg)]
+     (u/map->builder-w-defaults
+      #(com.nimbusds.jose.JWSHeader$Builder. signing-alg-obj)
+      #(.build %)
+      #(.customParam %1 %2 %3)
+      header-builder-fields
+      addl-header-fields))))
+
 (defn sign-jwt
-  [{:keys [signing-alg claims signing-key ec-key-id]}]
+  [{:keys [signing-alg claims signing-key ec-key-id addl-header-fields]}]
   (let [signer (mk-signer signing-alg signing-key)
-        header (u/mk-sign-header signing-alg ec-key-id)
+        header (mk-sign-header signing-alg addl-header-fields)
         claims-set (map->claims-set claims)
         signed-jwt (doto (SignedJWT. header claims-set)
                          (.sign signer))]
@@ -121,10 +172,11 @@
     ))
 
 (defn encrypt-jwt
-  [{:keys [encrypt-alg encrypt-enc claims encrypt-key] :as config}]
+  [{:keys [encrypt-alg encrypt-enc claims encrypt-key addl-header-fields]
+    :as config}]
   (let [encrypter (mk-encrypter encrypt-alg encrypt-key)
         claims-set (map->claims-set claims)
-        header (u/mk-encrypt-header encrypt-alg encrypt-enc)
+        header (mk-encrypt-header encrypt-alg encrypt-enc addl-header-fields)
         encrypted-jwt (doto (EncryptedJWT. header claims-set)
                             (.encrypt encrypter))]
     (.serialize encrypted-jwt)))
@@ -197,18 +249,17 @@
 
 (defn nest-jwt
   "Sign and then encrypt a nested JWT"
-  [{:keys [signing-alg encrypt-alg encrypt-enc claims signing-key encrypt-key]}]
+  [{:keys [signing-alg encrypt-alg encrypt-enc claims signing-key encrypt-key
+           addl-enc-header-fields addl-sign-header-fields]}]
   (let [signer (mk-signer signing-alg signing-key)
         claims-set (map->claims-set claims)
-        sign-header (u/mk-sign-header signing-alg)
+        sign-header (mk-sign-header signing-alg addl-sign-header-fields)
         signed (doto (SignedJWT. sign-header claims-set)
                      (.sign signer))
         encrypt-alg-obj (u/mk-encrypt-alg encrypt-alg)
         encrypt-enc-obj (u/mk-encrypt-enc encrypt-enc)
-        encrypt-header (-> (com.nimbusds.jose.JWEHeader$Builder.
-                            encrypt-alg-obj encrypt-enc-obj)
-                           (.contentType "JWT")
-                           (.build))
+        encrypt-header (mk-encrypt-header encrypt-alg encrypt-enc
+                         (assoc addl-enc-header-fields :cty "JWT"))
         payload (Payload. signed)
         encrypter (mk-encrypter encrypt-alg encrypt-key)
         encrypted-jwe (doto (JWEObject. encrypt-header payload)

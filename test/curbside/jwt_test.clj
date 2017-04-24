@@ -299,6 +299,49 @@
             [header _ _ _ _] (unsafe-parse-serialized encrypted)]
         (is (map? header))))))
 
+(deftest test-custom-header-params
+  (let [kid "coolest kid on the block"
+        addl-header-fields {:kid kid}
+        alg :rsa-oaep
+        enc :a256gcm
+        encrypted (encrypt-jwt {:claims std-claims :encrypt-alg alg
+                                :encrypt-enc enc :encrypt-key rsa-jwk
+                                :addl-header-fields addl-header-fields})
+        [header _ _ _ _] (unsafe-parse-serialized encrypted)]
+
+    (testing "serialized JWT header contains custom key"
+      (is (= kid (:kid header))))
+
+    (testing "Nimbus fails to decrypt if kid is set in JWE header but not
+              in key"
+      (is (thrown? BadJOSEException
+                   (decrypt-jwt
+                     {:encrypt-alg alg :encrypt-enc enc
+                      :serialized-jwt encrypted :decrypt-key rsa-jwk}))))
+
+    (testing "decryption succeeds if kid is assoced into key"
+      (is (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                        :serialized-jwt encrypted
+                        :decrypt-key (assoc rsa-jwk :kid kid)})))
+
+    (testing "lots of standard header fields work correctly"
+      (let [txt "http://www.example.com"
+            many-fields {:apu txt
+                         :apv txt
+                         :tag txt
+                         :zip "DEF"
+                         :cty "JWT"
+                         :iv txt
+                         :jku txt
+                         :kid kid
+                         :p2c 5
+                         :p2s txt
+                         :x5c [txt txt]
+                         :x5t#S256 txt}]
+        (is (encrypt-jwt {:claims std-claims :encrypt-alg alg
+                          :encrypt-enc enc :encrypt-key rsa-jwk
+                          :addl-header-fields many-fields}))))))
+
 (deftest test-jwk-alg-enc-keywords
   (let [with-alg (assoc rsa-jwk :alg :rsa-oaep :enc :rs256)
         json-map (json/decode (keys/->json-jwk with-alg) true)
