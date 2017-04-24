@@ -44,8 +44,14 @@
   (unsign-claims (sign-claims claims) exp-claims verifier))
 
 (deftest test-sign-rsa
-  (let [verify (fn [] (sign-unsign std-claims std-claims nil))]
-    (is (= std-claims (verify))) "Expecting the claims we used as input succeeds."))
+  (let [verify (fn [] (sign-unsign std-claims std-claims nil))
+        verify-fail (fn [] (sign-unsign std-claims std-claims
+                                        (constantly {:verified? false
+                                                     :details {:bad :bad}})))]
+    (is (= std-claims (verify)))
+    (try
+      (verify-fail)
+      (catch Exception e (is (= :bad (:bad (ex-data e))))))))
 
 (deftest test-nested-map-claims
   (let [nested-map {:a {:b :c}}
@@ -172,7 +178,7 @@
 
         process (fn process
                   ([jwt]
-                   (process jwt (constantly true)))
+                   (process jwt (constantly {:verified? true})))
                   ([jwt verifier]
                    (process-jwt
                      {:signing-alg :rs256
@@ -199,24 +205,29 @@
                             :nbf (t/plus (t/now) (t/days 7))))))))
 
   (testing "allows custom claims verification"
-    (is (= {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"}
-           (process (nest std-claims)
-                    (fn [claims-set]
+    (let [verifier (fn [claims-set]
+                     {:verified?
                       (and (= (:iss claims-set) "curbside.com")
-                           (contains? (:aud claims-set) "curbside.com"))))))
+                           (contains? (:aud claims-set) "curbside.com"))
+                      :details "iss and aud didn't both match"})
+          bad-verifier (fn [claims-set]
+                         {:verified? (and (= (:iss claims-set) "blurbside.com")
+                                          (contains? (:aud claims-set) "bopis"))
+                          :details {:iss "not blurbside.com"}})]
 
-    (is (thrown? Exception
-                 (process (nest (assoc std-claims
-                                       :exp (t/minus (t/now) (t/days 7))))
-                          (fn [claims-set]
-                            (and (= (:iss claims-set) "curbside.com")
-                                 (contains? (:aud claims-set) "curbside.com"))))))
 
-    (is (thrown? Exception
-                 (process (nest std-claims)
-                          (fn [claims-set]
-                            (and (= (:iss claims-set) "blurbside.com")
-                                 (contains? (:aud claims-set) "bopis")))))))
+      (is (= {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"}
+             (process (nest std-claims)
+                      verifier)))
+
+      (is (thrown? Exception
+                   (process (nest (assoc std-claims
+                                         :exp (t/minus (t/now) (t/days 7))))
+                            verifier)))
+
+      (is (thrown? Exception
+                   (process (nest std-claims)
+                            bad-verifier)))))
 
 
   (testing "accepts signed JWTs"
@@ -246,8 +257,8 @@
 
 (defn- make-verifier [expected]
   (fn [{:keys [iss aud]}]
-    (and (= iss (:iss expected))
-         (contains? aud (:aud expected)))))
+    {:verified? (and (= iss (:iss expected))
+                     (contains? aud (:aud expected)))}))
 
 (deftest test-nest-unsign-fails
   (let [signing-alg :rs256
