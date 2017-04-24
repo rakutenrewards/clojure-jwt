@@ -33,8 +33,14 @@
   "Convert a JWK Nimbus object to a map, keeping the private data within the
    map opaque to prevent accidental printing."
   [jwk]
-  (let [serialize (fn [j] (-> (.toJSONString j)
-                              (json/decode true)))]
+  (let [convert-alg (fn [jwk k]
+                      (if (contains? jwk k)
+                        (update jwk k u/alg-string->alg-keyword)
+                        jwk))
+        serialize (fn [j] (-> (.toJSONString j)
+                              (json/decode true)
+                              (convert-alg :alg)
+                              (convert-alg :enc)))]
     (if (.isPrivate jwk)
       (let [with-private-keys (serialize jwk)
             public-only (or (some-> (.toPublicJWK jwk) (JWK->map)) {})
@@ -53,13 +59,21 @@
   "Converts a map with some opaque fields, such as produced by our key
          generation functions, into a JSON string in JWK format."
   [mp]
-  (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)]
-    (json/encode uncensored)))
+  (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)
+        convert-alg (fn [jwk k]
+                      (if (contains? jwk k)
+                        (update jwk k #(:alg-field (% u/alg-info)))
+                        jwk))]
+    (-> uncensored
+        (convert-alg :alg)
+        (convert-alg :enc)
+        (json/encode))))
 
 (defn map->JWK
   [mp]
-  (let [as-json (->json-jwk mp)]
-    (JWK/parse as-json)))
+  (-> mp
+      (->json-jwk)
+      (JWK/parse)))
 
 (defn key-pairs
   "A lazy interface to java.security.KeyPairGenerator. Takes a map of arguments

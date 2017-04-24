@@ -9,7 +9,8 @@
             ;clojure.test.check is unused, but if it's not included,
             ;stest/check throws an incomprehensible exception.
             [clojure.test.check :as tc]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [cheshire.core :as json])
   (:import
    (com.nimbusds.jose JOSEException)
    (com.nimbusds.jose.proc BadJWEException)
@@ -286,6 +287,23 @@
                                     :claims std-claims :encrypt-key rsa-jwk})
             [header _ _ _ _] (unsafe-parse-serialized encrypted)]
         (is (map? header))))))
+
+(deftest test-jwk-alg-enc-keywords
+  (let [with-alg (assoc rsa-jwk :alg :rsa-oaep :enc :rs256)
+        json-map (json/decode (keys/->json-jwk with-alg) true)
+        nimbus-jwk (keys/map->JWK with-alg)
+        json-nimbus-map (json/decode (.toJSONString nimbus-jwk) true)
+        jwk (keys/JWK->map nimbus-jwk)
+        ]
+    (testing "After conversion to JSON, :alg field has been translated from
+              our keyword to the standard string"
+      (is (= "RSA-OAEP" (:alg json-map))))
+    (testing "After converting our JWK map to a Nimbus object, the algorithm
+              field is set correctly"
+      (is (= "RSA-OAEP" (.getName (.getAlgorithm nimbus-jwk)))))
+    (testing "After converting Nimbus JWK to map, :alg field is once again a
+              keyword"
+      (is (= :rsa-oaep (:alg jwk))))))
 
 ;; property-based tests
 (deftest prop-encrypt-jwt
