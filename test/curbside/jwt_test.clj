@@ -157,11 +157,15 @@
                           #"Exceeded configured input limit"
                           (jwk-set)))))
 
-(deftest testjwk-set
+(deftest test-jwk-set
   (let [set1 (keys/jwk-set
                (io/as-file (io/resource "example-jwk-set.json")))]
     (is (vector? (keys/jwk-set set1)))
     (is (vector? (keys/jwk-set (first set1))))))
+
+(deftest test-parse-jwk-json
+  (let [jwk-set-json (str "{\"keys\" : [" (keys/->json-jwk rsa-jwk) "]}")]
+    (is (coll? (keys/parse-jwk-set jwk-set-json)))))
 
 (deftest jwk-private?
   (let [jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))]
