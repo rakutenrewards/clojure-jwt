@@ -37,7 +37,7 @@
   "Unsign with RSA-256 and the standard test key. For claims validation tests."
   [jwt claims verifier]
   (unsign-jwt {:signing-alg :rs256 :serialized-jwt jwt
-               :unsigning-key rsa-jwk
+               :unsigning-keys [rsa-jwk]
                :verifier verifier}))
 
 (defn sign-unsign
@@ -63,7 +63,7 @@
   (let [signed (sign-claims std-claims)
         wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))
         unsign (fn [] (unsign-jwt {:signing-alg :rs256 :serialized-jwt signed
-                                   :unsigning-key wrong-key
+                                   :unsigning-keys [wrong-key]
                                    :expected-claims std-claims}))]
     (is (thrown-with-msg? Exception #"Invalid signature" (unsign)))))
 
@@ -75,7 +75,7 @@
         verify (fn [] (decrypt-jwt {:encrypt-alg alg
                                     :encrypt-enc enc
                                     :serialized-jwt encrypted
-                                    :decrypt-key rsa-jwk
+                                    :decrypt-keys [rsa-jwk]
                                     :expected-claims std-claims}))]
     (is (map? (verify)) "encrypt/decrypt succeeds")))
 
@@ -87,7 +87,7 @@
                                 :claims std-claims :encrypt-key key})
         verified (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                                :serialized-jwt encrypted
-                               :decrypt-key key :expected-claims std-claims})]
+                               :decrypt-keys [key] :expected-claims std-claims})]
     (is (map? verified) "Symmetric encrypt/decrypt succeeds")))
 
 (deftest decrypt-wrong-key
@@ -98,9 +98,16 @@
         wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? false}))
         verify (fn [] (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                                     :serialized-jwt encrypted
-                                    :decrypt-key wrong-key
+                                    :decrypt-keys [wrong-key]
                                     :expected-claims std-claims}))]
-    (is (thrown? BadJWEException (verify)))))
+    (testing "Decrypting with wrong key throws exception"
+      (is (thrown? BadJWEException (verify))))
+
+    (testing "When multiple keys are provided, Nimbus uses correct key"
+      (is (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                        :serialized-jwt encrypted
+                        :decrypt-keys [wrong-key rsa-jwk]
+                        :expected-claims std-claims})))))
 
 (deftest nested-roundtrip
   (let [encrypt-alg :rsa-oaep-256
@@ -113,8 +120,8 @@
                   :signing-key sign-key :encrypt-key rsa-jwk})
         verify (fn [] (unnest-jwt
                        {:signing-alg sign-alg :encrypt-alg encrypt-alg
-                        :serialized-jwt encoded :unsigning-key sign-key
-                        :decrypt-key rsa-jwk :encrypt-enc encrypt-enc}))]
+                        :serialized-jwt encoded :unsigning-keys [sign-key]
+                        :decrypt-keys [rsa-jwk] :encrypt-enc encrypt-enc}))]
     (is (map? (verify)) "nested sign/encrypt followed by decrypt/unsign")))
 
 (deftest jwk->map-roundtrip
@@ -150,11 +157,15 @@
                           #"Exceeded configured input limit"
                           (jwk-set)))))
 
-(deftest testjwk-set
+(deftest test-jwk-set
   (let [set1 (keys/jwk-set
                (io/as-file (io/resource "example-jwk-set.json")))]
     (is (vector? (keys/jwk-set set1)))
     (is (vector? (keys/jwk-set (first set1))))))
+
+(deftest test-parse-jwk-json
+  (let [jwk-set-json (str "{\"keys\" : [" (keys/->json-jwk rsa-jwk) "]}")]
+    (is (coll? (keys/parse-jwk-set jwk-set-json)))))
 
 (deftest jwk-private?
   (let [jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? true}))]
@@ -277,7 +288,7 @@
                           :encrypt-key enc-key})
         unsign (fn [] (unsign-jwt {:signing-alg signing-alg
                                    :serialized-jwt nested
-                                   :unsigning-key sign-key
+                                   :unsigning-keys [sign-key]
                                    :verifier (make-verifier
                                               {:iss "https://auth.curbside.com"
                                                :aud "https://api.curbside.com"})}))]
@@ -317,12 +328,12 @@
       (is (thrown? BadJOSEException
                    (decrypt-jwt
                      {:encrypt-alg alg :encrypt-enc enc
-                      :serialized-jwt encrypted :decrypt-key rsa-jwk}))))
+                      :serialized-jwt encrypted :decrypt-keys [rsa-jwk]}))))
 
     (testing "decryption succeeds if kid is assoced into key"
       (is (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                         :serialized-jwt encrypted
-                        :decrypt-key (assoc rsa-jwk :kid kid)})))
+                        :decrypt-keys [(assoc rsa-jwk :kid kid)]})))
 
     (testing "lots of standard header fields work correctly"
       (let [txt "http://www.example.com"
