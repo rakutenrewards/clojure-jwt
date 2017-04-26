@@ -98,7 +98,7 @@
         wrong-key (first (keys/rsa-jwks {:key-len 2048 :uuid? false}))
         verify (fn [] (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                                     :serialized-jwt encrypted
-                                    :decrypt-key wrong-key
+                                    :decrypt-keys [wrong-key]
                                     :expected-claims std-claims}))]
     (testing "Decrypting with wrong key throws exception"
       (is (thrown? BadJWEException (verify))))
@@ -328,7 +328,7 @@
       (is (thrown? BadJOSEException
                    (decrypt-jwt
                      {:encrypt-alg alg :encrypt-enc enc
-                      :serialized-jwt encrypted :decrypt-key rsa-jwk}))))
+                      :serialized-jwt encrypted :decrypt-keys [rsa-jwk]}))))
 
     (testing "decryption succeeds if kid is assoced into key"
       (is (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc

@@ -95,16 +95,9 @@
            alg-supports-enc?)
     gen-encrypt-jwt-config))
 
-;(s/def ::decrypt-jwt-config
-;  (let [other-keys (fn [k] (s/keys :req-un [::encrypt-alg ::encrypt-enc
-;                                            ::serialized-jwt k]
-;                                   :opt-un [::verifier]))]
-;    (s/or :multiple-decrypt-keys (other-keys ::decrypt-keys)
-;          :one-decrypt-key (other-keys ::decrypt-key))))
-
 (s/def ::decrypt-jwt-config
   (s/keys :req-un [::encrypt-alg ::encrypt-enc
-                   ::serialized-jwt (or ::decrypt-keys ::decrypt-key)]
+                   ::serialized-jwt ::decrypt-keys]
           :opt-un [::verifier]))
 
 (s/def ::sign-jwt-config
@@ -116,8 +109,7 @@
                (contains? :ec-key-id)))))
 
 (s/def ::unsign-jwt-config
-  (s/keys :req-un [::signing-alg ::serialized-jwt
-                   (or ::unsigning-key ::unsigning-keys)]
+  (s/keys :req-un [::signing-alg ::serialized-jwt ::unsigning-keys]
           :opt-un [::verifier]))
 
 (s/def ::nest-jwt-config
@@ -127,8 +119,7 @@
 
 (s/def ::unnest-jwt-config
   (s/keys :req-un [::signing-alg ::encrypt-alg ::serialized-jwt
-                   (or ::unsigning-key ::unsigning-keys)
-                   (or ::decrypt-key ::decrypt-keys) ::encrypt-enc]
+                   ::unsigning-keys ::decrypt-keys ::encrypt-enc]
           :opt-un [::verifier]))
 
 (s/fdef jwt/encrypt-jwt

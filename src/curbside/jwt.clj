@@ -236,20 +236,16 @@
    - :verified? -- true iff the claims can be verified
    - :details  -- a map of any error details you wish to include in an exception
                   when verification fails."
-  [{:keys [encrypt-alg encrypt-enc serialized-jwt decrypt-keys decrypt-key
-           verifier]}]
+  [{:keys [encrypt-alg encrypt-enc serialized-jwt decrypt-keys verifier]}]
   (process-jwt {:encrypt-alg encrypt-alg :encrypt-enc encrypt-enc
-                :jwt serialized-jwt
-                :keys (if decrypt-keys decrypt-keys [decrypt-key])
-                :verifier verifier}))
+                :jwt serialized-jwt :keys decrypt-keys :verifier verifier}))
 
 (defn unsign-jwt
   "Verifies the signature of a JWS. See the docs for decrypt-jwt for details
    on the optional verifier param."
-  [{:keys [signing-alg serialized-jwt unsigning-key unsigning-keys verifier]}]
+  [{:keys [signing-alg serialized-jwt unsigning-keys verifier]}]
   (process-jwt {:signing-alg signing-alg :jwt serialized-jwt
-                :keys (if unsigning-keys unsigning-keys [unsigning-key])
-                :verifier verifier}))
+                :keys unsigning-keys :verifier verifier}))
 
 (defn nest-jwt
   "Sign and then encrypt a nested JWT"
@@ -272,10 +268,9 @@
 
 (defn unnest-jwt
   "Decrypt and then verify the signature of a nested JWT."
-  [{:keys [signing-alg encrypt-alg encrypt-enc serialized-jwt unsigning-key
-           unsigning-keys decrypt-key decrypt-keys verifier]}]
+  [{:keys [signing-alg encrypt-alg encrypt-enc serialized-jwt
+           unsigning-keys decrypt-keys verifier]}]
   (process-jwt {:signing-alg signing-alg :encrypt-alg encrypt-alg
                 :jwt serialized-jwt
-                :keys (concat (if unsigning-keys unsigning-keys [unsigning-key])
-                              (if decrypt-keys decrypt-keys [decrypt-key]))
+                :keys (concat unsigning-keys decrypt-keys)
                 :verifier verifier :encrypt-enc encrypt-enc}))
