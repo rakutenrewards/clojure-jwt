@@ -115,7 +115,7 @@
 (defn parse-jwk-set
   "Parse a JWK set from a JSON string"
   [jstr]
-  (-> jstr
+  (->> jstr
       (JWKSet/parse)
       (.getKeys)
       (seq)
