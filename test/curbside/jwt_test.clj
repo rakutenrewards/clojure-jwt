@@ -26,6 +26,8 @@
 
 (def rsa-jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? false})))
 
+(def ec-jwk (first (keys/ec-jwks {:curve :p256 :uuid? false})))
+
 (def std-claims {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"})
 
 (defn sign-claims
@@ -53,6 +55,13 @@
     (try
       (verify-fail)
       (catch Exception e (is (= :bad (:bad (ex-data e))))))))
+
+(deftest test-sign-ec
+  (let [signed (sign-jwt {:signing-alg :es256 :claims std-claims
+                          :signing-key ec-jwk})
+        unsigned (unsign-jwt {:signing-alg :es256 :serialized-jwt signed
+                              :unsigning-keys [ec-jwk]})]
+    (is (= std-claims unsigned))))
 
 (deftest test-nested-map-claims
   (let [nested-map {:a {:b :c}}

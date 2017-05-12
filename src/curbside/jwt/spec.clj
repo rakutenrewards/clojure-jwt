@@ -106,7 +106,8 @@
          (fn [config]
            (or (not (some #(= % (:signing-alg config))
                           [:es256 :es384 :es512]))
-               (contains? :ec-key-id)))))
+               ;(contains? config :ec-key-id)
+               true))))
 
 (s/def ::unsign-jwt-config
   (s/keys :req-un [::signing-alg ::serialized-jwt ::unsigning-keys]
