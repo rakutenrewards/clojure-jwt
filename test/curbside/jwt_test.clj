@@ -88,6 +88,16 @@
                                     :expected-claims std-claims}))]
     (is (map? (verify)) "encrypt/decrypt succeeds")))
 
+(deftest encrypt-decrypt-ecdh
+  (let [alg :ecdh-es-a128kw
+        enc :a128gcm
+        encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                :claims std-claims :encrypt-key ec-jwk})
+        claims (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                             :serialized-jwt encrypted :decrypt-keys[ec-jwk]
+                             :expected-claims std-claims})]
+    (is (= claims std-claims))))
+
 (deftest encrypt-decrypt-dir
   (let [alg :dir
         enc :a128cbc-hs256
@@ -383,4 +393,4 @@
 (deftest prop-encrypt-jwt
   (is (every? (comp nil? :failure)
               (stest/check `encrypt-jwt
-                           {:clojure.spec.test.check/opts {:num-tests 10}}))))
+                           {:clojure.spec.test.check/opts {:num-tests 100}}))))
