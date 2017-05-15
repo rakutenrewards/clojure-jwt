@@ -57,7 +57,6 @@
 
 (defn gen-encrypt-key
   [encrypt-alg]
-  ;TODO: implement non-rsa test cases!
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
     (g/return (first (keys/rsa-jwks {:key-len 2048 :uuid? true})))
@@ -98,13 +97,8 @@
           :opt-un [::verifier]))
 
 (s/def ::sign-jwt-config
-  (s/and (s/keys :req-un [::signing-alg ::claims ::signing-key]
-                 :opt-un [::addl-header-fields])
-         (fn [config]
-           (or (not (some #(= % (:signing-alg config))
-                          [:es256 :es384 :es512]))
-               ;(contains? config :ec-key-id)
-               true))))
+  (s/keys :req-un [::signing-alg ::claims ::signing-key]
+          :opt-un [::addl-header-fields]))
 
 (s/def ::unsign-jwt-config
   (s/keys :req-un [::signing-alg ::serialized-jwt ::unsigning-keys]

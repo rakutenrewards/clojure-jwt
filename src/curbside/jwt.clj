@@ -119,13 +119,6 @@
        header-builder-fields
        addl-header-fields))))
 
-(defn mk-ec-header
-  [signing-alg-obj ec-key-id]
-  (-> signing-alg-obj
-      (com.nimbusds.jose.JWSHeader$Builder.)
-      (.keyID)
-      (.build)))
-
 (defn mk-sign-header
   ([signing-alg]
    (mk-sign-header signing-alg {}))
@@ -139,7 +132,7 @@
       addl-header-fields))))
 
 (defn sign-jwt
-  [{:keys [signing-alg claims signing-key ec-key-id addl-header-fields]}]
+  [{:keys [signing-alg claims signing-key addl-header-fields]}]
   (let [signer (mk-signer signing-alg signing-key)
         header (mk-sign-header signing-alg addl-header-fields)
         claims-set (map->claims-set claims)
