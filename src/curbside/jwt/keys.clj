@@ -197,6 +197,10 @@
        (map (partial keypair->jwk (assoc config :key-type :rsa)))))
 
 (defn ec-jwks
+  "Generate a lazy sequence of new JWK elliptic curve keypairs. Config must be:
+  - :curve - specifies the curve to use. One of [:p256 :p384 :p521]
+  The returned JWK contains both the private and public keys! Use
+  jwk-public-key to extract the public key. Use .toJSONString to get JSON."
   [config]
   (let [curve (make-ec-curve (:curve config))]
     (->> (key-pairs {:algorithm "EC" :key-len (.toECParameterSpec curve)})
