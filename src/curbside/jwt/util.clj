@@ -191,3 +191,9 @@
   (as-> s $
        (.decode (Base64/getUrlDecoder) $)
        (String. $ "UTF-8")))
+
+(defn base64encode
+  [s]
+  (->> s
+       (.getBytes)
+       (.encodeToString (Base64/getUrlEncoder))))
