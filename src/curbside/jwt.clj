@@ -84,9 +84,8 @@
     (RSASSASigner. (k/map->JWK signing-key))
     (:hs256 :hs384 :hs512)
     (MACSigner. (k/map->JWK signing-key))
-    (:ec256 :ec384 :ec512)
-    (ECDSASigner. (.getS (k/map->JWK signing-key)))))
-
+    (:es256 :es384 :es512)
+    (ECDSASigner. (.toECPrivateKey (k/map->JWK signing-key)))))
 
 (def header-builder-fields
   {:apu (fn [obj v] (.agreementPartyUInfo obj (Base64URL. v)))
@@ -120,13 +119,6 @@
        header-builder-fields
        addl-header-fields))))
 
-(defn mk-ec-header
-  [signing-alg-obj ec-key-id]
-  (-> signing-alg-obj
-      (com.nimbusds.jose.JWSHeader$Builder.)
-      (.keyID)
-      (.build)))
-
 (defn mk-sign-header
   ([signing-alg]
    (mk-sign-header signing-alg {}))
@@ -140,7 +132,7 @@
       addl-header-fields))))
 
 (defn sign-jwt
-  [{:keys [signing-alg claims signing-key ec-key-id addl-header-fields]}]
+  [{:keys [signing-alg claims signing-key addl-header-fields]}]
   (let [signer (mk-signer signing-alg signing-key)
         header (mk-sign-header signing-alg addl-header-fields)
         claims-set (map->claims-set claims)

@@ -26,6 +26,8 @@
 
 (def rsa-jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? false})))
 
+(def ec-jwk (first (keys/ec-jwks {:curve :p256 :uuid? false})))
+
 (def std-claims {:iss "curbside.com" :aud #{"curbside.com"} :sub "jim"})
 
 (defn sign-claims
@@ -54,6 +56,13 @@
       (verify-fail)
       (catch Exception e (is (= :bad (:bad (ex-data e))))))))
 
+(deftest test-sign-ec
+  (let [signed (sign-jwt {:signing-alg :es256 :claims std-claims
+                          :signing-key ec-jwk})
+        unsigned (unsign-jwt {:signing-alg :es256 :serialized-jwt signed
+                              :unsigning-keys [ec-jwk]})]
+    (is (= std-claims unsigned))))
+
 (deftest test-nested-map-claims
   (let [nested-map {:a {:b :c}}
         verify (fn [] (sign-unsign nested-map nested-map nil))]
@@ -78,6 +87,16 @@
                                     :decrypt-keys [rsa-jwk]
                                     :expected-claims std-claims}))]
     (is (map? (verify)) "encrypt/decrypt succeeds")))
+
+(deftest encrypt-decrypt-ecdh
+  (let [alg :ecdh-es-a128kw
+        enc :a128gcm
+        encrypted (encrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                                :claims std-claims :encrypt-key ec-jwk})
+        claims (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
+                             :serialized-jwt encrypted :decrypt-keys[ec-jwk]
+                             :expected-claims std-claims})]
+    (is (= claims std-claims))))
 
 (deftest encrypt-decrypt-dir
   (let [alg :dir
@@ -374,4 +393,4 @@
 (deftest prop-encrypt-jwt
   (is (every? (comp nil? :failure)
               (stest/check `encrypt-jwt
-                           {:clojure.spec.test.check/opts {:num-tests 10}}))))
+                           {:clojure.spec.test.check/opts {:num-tests 100}}))))

@@ -20,17 +20,10 @@
 (s/def ::signing-alg #{:rs256 :rs384 :rs512 :hs256 :hs384 :hs512 :es256 :es384
                        :es512})
 
-; TODO: https://github.com/Curbside/curbside-jwt/issues/27
-(def encs-for-alg
-  (let [all-encs u/encoding-algs]
-    {:rsa1-5 #{:a128gcm}
-     :rsa-oaep all-encs
-     :rsa-oaep-256 all-encs
-     :dir all-encs}))
-
 (defn alg-supports-enc?
   [{:keys [encrypt-alg encrypt-enc]}]
-  (contains? (encrypt-alg encs-for-alg) encrypt-enc))
+  (or (not (= encrypt-alg :rsa1-5))
+      (= encrypt-enc :a128gcm)))
 
 (s/def ::claims map?)
 
@@ -64,7 +57,6 @@
 
 (defn gen-encrypt-key
   [encrypt-alg]
-  ;TODO: implement non-rsa test cases!
   (case encrypt-alg
     (:rsa1-5 :rsa-oaep :rsa-oaep-256)
     (g/return (first (keys/rsa-jwks {:key-len 2048 :uuid? true})))
@@ -72,19 +64,23 @@
     (throw (ex-info "AES keygen not yet implemented." {:alg encrypt-alg}))
     :dir
     (g/bind
-      (g/return 128) ;TODO: other key lengths. See issue #32
+      (g/return 128)
       (fn [key-len]
         (g/return (keys/symmetric-key {:key-len key-len :alg encrypt-alg}))))
     (:ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw)
-    (throw (ex-info "ECDH keygen not yet implemented." {:alg encrypt-alg}))))
+    (g/return (first (keys/ec-jwks {:curve :p256 :uuid? true})))))
 
 (defn gen-encrypt-jwt-config
   []
   ;TODO: generate non-rsa test cases!
-  (g/bind (s/gen #{:rsa1-5 :rsa-oaep :rsa-oaep-256 :dir})
+  (g/bind (s/gen #{:rsa1-5 :rsa-oaep :rsa-oaep-256 :dir
+                   :ecdh-es :ecdh-es-a128kw :ecdh-es-a192kw :ecdh-es-a256kw})
     (fn [encrypt-alg]
       (g/hash-map :encrypt-alg (g/return encrypt-alg)
-                  :encrypt-enc (s/gen #{:a128gcm}) ;see issue #32
+                  :encrypt-enc (if (or (= encrypt-alg :rsa1-5)
+                                       (= encrypt-alg :dir))
+                                 (g/return :a128gcm)
+                                 (s/gen #{:a128gcm :a256gcm :a512gcm}))
                   :claims (g/return {:iss "foo" :aud "foo"})
                   :encrypt-key (gen-encrypt-key encrypt-alg)))))
 
@@ -101,12 +97,8 @@
           :opt-un [::verifier]))
 
 (s/def ::sign-jwt-config
-  (s/and (s/keys :req-un [::signing-alg ::claims ::signing-key]
-                 :opt-un [::addl-header-fields])
-         (fn [config]
-           (or (not (some #(= % (:signing-alg config))
-                          [:es256 :es384 :es512]))
-               (contains? :ec-key-id)))))
+  (s/keys :req-un [::signing-alg ::claims ::signing-key]
+          :opt-un [::addl-header-fields]))
 
 (s/def ::unsign-jwt-config
   (s/keys :req-un [::signing-alg ::serialized-jwt ::unsigning-keys]
