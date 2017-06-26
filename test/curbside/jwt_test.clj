@@ -3,6 +3,7 @@
             [clj-time.core :as t]
             [curbside.jwt :refer :all]
             [curbside.jwt.keys :as keys]
+            [curbside.jwt.util :as util]
             [clojure.spec.test :as stest]
             [curbside.jwt.spec :as spec]
             [clojure.spec.gen :as g]
@@ -23,6 +24,12 @@
 (stest/instrument `unsign-jwt)
 (stest/instrument `nest-jwt)
 (stest/instrument `unnest-jwt)
+
+(def none-jws
+  (let [none-header "{\"alg\":\"none\",\"typ\":\"jwt\"}"
+        none-body "{\"loggedInAs\":\"admin\",\"iat\":1422779638}"
+        enc #(util/base64encode %)]
+    (str (enc none-header) "." (enc none-body) ".")))
 
 (def rsa-jwk (first (keys/rsa-jwks {:key-len 2048 :uuid? false})))
 
@@ -388,6 +395,21 @@
     (testing "After converting Nimbus JWK to map, :alg field is once again a
               keyword"
       (is (= :rsa-oaep (:alg jwk))))))
+
+(deftest test-none-alg
+  (testing "Nimbus throws with none alg when another alg is expected"
+    (is (thrown-with-msg?
+           com.nimbusds.jose.proc.BadJOSEException
+           #"Unsecured.*JWTs are rejected"
+           (unsign-jwt {:signing-alg :hs256 :serialized-jwt none-jws
+                        :unsigning-keys
+                        [(first (keys/symmetric-keys
+                                 {:key-len 256 :alg :hs256}))]})))
+    (is (thrown-with-msg?
+           com.nimbusds.jose.proc.BadJOSEException
+           #"Unsecured.*JWTs are rejected"
+           (decrypt-jwt {:encrypt-enc :a256gcm :encrypt-alg :rsa-oaep
+                         :serialized-jwt none-jws :decrypt-keys [rsa-jwk]})))))
 
 ;; property-based tests
 (deftest prop-encrypt-jwt
