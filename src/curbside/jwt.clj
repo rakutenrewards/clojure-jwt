@@ -274,3 +274,24 @@
                 :jwt serialized-jwt
                 :keys (concat unsigning-keys decrypt-keys)
                 :verifier verifier :encrypt-enc encrypt-enc}))
+
+(defn debug-unnest-jwt
+  "decrypt a nested JWT and return the signed payload WITHOUT verifying the
+   signature. This is INSECURE and for debugging only. The result of this
+   function can be examined by calling .toString followed by
+   unsafe-parse-serialized on it. You can also use debug-unsign-nested-jwt on
+   the result to perform the second step of unnest."
+  [{:keys [encrypt-alg encrypt-enc serialized-jwt decrypt-key]}]
+  (let [decrypter (mk-decrypter encrypt-alg decrypt-key)
+        decrypted-jwe (doto (com.nimbusds.jose.JWEObject/parse serialized-jwt)
+                            (.decrypt decrypter))]
+    (.getPayload decrypted-jwe)))
+
+(defn debug-unsign-nested-jwt
+  "attempts to verify the signature of the payload of a nested JWT after it has
+   been decrypted by debug-unnest-jwt. Returns true if the signature is verified
+   and false otherwise."
+  [{:keys [payload unsigning-key signing-alg]}]
+  (let [verifier (mk-verifier signing-alg unsigning-key)
+        signed-jwt (.toSignedJWT payload)]
+    (.verify signed-jwt verifier)))
