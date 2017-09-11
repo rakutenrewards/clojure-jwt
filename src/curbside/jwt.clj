@@ -1,8 +1,14 @@
 (ns curbside.jwt
+  "High-level tools for encoding and decoding JWTs, while ensuring that their
+   claims are verified. Wraps the Nimbus JOSE + JWT library.
+   Note: this library supports both keywords and strings in the Clojure
+   representation of claims, but prefers keywords. All keyword keys and values
+   in an input claim map are converted to strings before passing to Nimbus."
   (:require
    [clj-time.coerce :as time-coerce]
    [clj-time.core :as time-core]
    [clojure.string :as str]
+   [clojure.walk :as walk]
    [cheshire.core :as json]
    [curbside.jwt.keys :as k]
    [curbside.jwt.util :as u])
@@ -40,6 +46,10 @@
     (map (comp parse-or-const u/base64decode) parts)))
 
 (defn- map->claims-set
+  "Converts a Clojure map into a set of claims. Recursively converts all
+   keyword keys and values in the map into strings first. This ensures that
+   users can pass in either strings or keywords without problems. Otherwise,
+   keywords retain the colon at the beginning."
   [claims]
   (let [def-claims {:sub (fn [x y] (.subject x y))
                     :aud (fn [x y] (if (string? y)

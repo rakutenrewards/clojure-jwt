@@ -1,7 +1,10 @@
 (ns curbside.jwt.util
-  (:require [medley.core :refer [filter-kv map-kv]])
+  (:require
+   [clojure.walk :as walk]
+   [medley.core :refer [filter-kv map-kv]])
   (:import
    (java.util UUID)
+   (clojure.lang MapEntry)
    (com.nimbusds.jose JWSHeader Payload JWSObject JWSAlgorithm JWEAlgorithm
                       EncryptionMethod JWEHeader JOSEException JWEObject
                       CompressionAlgorithm)
@@ -174,17 +177,28 @@
   (throw (ex-info "Functionality not implemented." {:explanation expl})))
 
 (defn map->builder-w-defaults
+  "Note: recursively converts all keyword keys and values in fields into
+   strings."
   [builder-constructor build-fn custom-field-fn field-defaults fields]
   (let [stringify-if-keyword (fn [x] (if (keyword? x)
                                          (name x)
                                          x))
+        stringify-kv
+        (fn [[k v]] [(stringify-if-keyword k)
+                     (stringify-if-keyword v)])
+        keywordized-fields
+        (walk/prewalk
+                (fn [x]
+                  (if (= MapEntry (type x))
+                    (stringify-kv x)
+                    x))
+                fields)
         add-field (fn [builder k v]
-                    (if (contains? field-defaults k)
-                      ((field-defaults k) builder v)
-                      (custom-field-fn builder
-                                       (name k)
-                                       (stringify-if-keyword v))))]
-    (build-fn (reduce-kv add-field (builder-constructor) fields))))
+                    (let [kword (keyword k)]
+                      (if (contains? field-defaults kword)
+                        ((field-defaults kword) builder v)
+                        (custom-field-fn builder kword v))))]
+    (build-fn (reduce-kv add-field (builder-constructor) keywordized-fields))))
 
 (defn base64decode
   [s]

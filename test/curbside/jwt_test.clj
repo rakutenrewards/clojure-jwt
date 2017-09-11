@@ -72,8 +72,10 @@
 
 (deftest test-nested-map-claims
   (let [nested-map {:a {:b :c}}
-        verify (fn [] (sign-unsign nested-map nested-map nil))]
-    (is (map? (verify)))))
+        verify (fn [] (sign-unsign nested-map nested-map nil))
+        result (verify)]
+    (is (map? result))
+    (is (= {:a {:b :c}} result))))
 
 (deftest unexpected-signature
   (let [signed (sign-claims std-claims)
@@ -103,7 +105,7 @@
         claims (decrypt-jwt {:encrypt-alg alg :encrypt-enc enc
                              :serialized-jwt encrypted :decrypt-keys[ec-jwk]
                              :expected-claims std-claims})]
-    (is (= claims std-claims))))
+    (is (= std-claims claims))))
 
 (deftest encrypt-decrypt-dir
   (let [alg :dir
