@@ -381,24 +381,9 @@
                           :encrypt-enc enc :encrypt-key rsa-jwk
                           :addl-header-fields many-fields}))))))
 
-(deftest test-jwk-alg-enc-keywords
-  (let [with-alg (assoc rsa-jwk :alg :rsa-oaep :enc :rs256)
-        json-map (json/decode (keys/->json-jwk with-alg) true)
-        nimbus-jwk (keys/map->JWK with-alg)
-        json-nimbus-map (json/decode (.toJSONString nimbus-jwk) true)
-        jwk (keys/JWK->map nimbus-jwk)]
-    (testing "After conversion to JSON, :alg field has been translated from
-              our keyword to the standard string"
-      (is (= "RSA-OAEP" (:alg json-map))))
-    (testing "After converting our JWK map to a Nimbus object, the algorithm
-              field is set correctly"
-      (is (= "RSA-OAEP" (.getName (.getAlgorithm nimbus-jwk)))))
-    (testing "After converting Nimbus JWK to map, :alg field is once again a
-              keyword"
-      (is (= :rsa-oaep (:alg jwk))))))
-
-(deftest test-jwk-alg-enc-uppercase-keywords
-  (let [with-alg (assoc rsa-jwk :alg :RSA-OAEP :enc :rs256)
+(defn test-jwk-alg-enc
+  [alg enc]
+  (let [with-alg (assoc rsa-jwk :alg alg :enc enc)
          json-map (json/decode (keys/->json-jwk with-alg) true)
          nimbus-jwk (keys/map->JWK with-alg)
          json-nimbus-map (json/decode (.toJSONString nimbus-jwk) true)
@@ -412,6 +397,12 @@
     (testing "After converting Nimbus JWK to map, :alg field is once again a
               keyword"
       (is (= :rsa-oaep (:alg jwk))))))
+
+(deftest test-jwk-alg-enc-keywords
+  (test-jwk-alg-enc :rsa-oaep :rs256))
+
+(deftest test-jwk-alg-enc-uppercase-keywords
+  (test-jwk-alg-enc :RSA-OAEP :rs256))
 
 (deftest test-none-alg
   (testing "Nimbus throws with none alg when another alg is expected"
