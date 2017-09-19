@@ -75,7 +75,7 @@
         verify (fn [] (sign-unsign nested-map nested-map nil))
         result (verify)]
     (is (map? result))
-    (is (= {:a {:b :c}} result))))
+    (is (= {:a {:b "c"}} result))))
 
 (deftest unexpected-signature
   (let [signed (sign-claims std-claims)
@@ -386,8 +386,23 @@
         json-map (json/decode (keys/->json-jwk with-alg) true)
         nimbus-jwk (keys/map->JWK with-alg)
         json-nimbus-map (json/decode (.toJSONString nimbus-jwk) true)
-        jwk (keys/JWK->map nimbus-jwk)
-        ]
+        jwk (keys/JWK->map nimbus-jwk)]
+    (testing "After conversion to JSON, :alg field has been translated from
+              our keyword to the standard string"
+      (is (= "RSA-OAEP" (:alg json-map))))
+    (testing "After converting our JWK map to a Nimbus object, the algorithm
+              field is set correctly"
+      (is (= "RSA-OAEP" (.getName (.getAlgorithm nimbus-jwk)))))
+    (testing "After converting Nimbus JWK to map, :alg field is once again a
+              keyword"
+      (is (= :rsa-oaep (:alg jwk))))))
+
+(deftest test-jwk-alg-enc-uppercase-keywords
+  (let [with-alg (assoc rsa-jwk :alg :RSA-OAEP :enc :rs256)
+         json-map (json/decode (keys/->json-jwk with-alg) true)
+         nimbus-jwk (keys/map->JWK with-alg)
+         json-nimbus-map (json/decode (.toJSONString nimbus-jwk) true)
+         jwk (keys/JWK->map nimbus-jwk)]
     (testing "After conversion to JSON, :alg field has been translated from
               our keyword to the standard string"
       (is (= "RSA-OAEP" (:alg json-map))))
