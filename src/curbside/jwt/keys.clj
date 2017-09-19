@@ -1,5 +1,6 @@
 (ns curbside.jwt.keys
   (:require
+   [clojure.string :as str]
    [curbside.jwt.util :as u]
    [cheshire.core :as json]
    [medley.core :refer [map-kv filter-kv]])
@@ -60,9 +61,11 @@
          generation functions, into a JSON string in JWK format."
   [mp]
   (let [uncensored (map-kv (fn [k v] [k (reveal v)]) mp)
+        lower-case-kw (comp keyword str/lower-case name)
         convert-alg (fn [jwk k]
                       (if (contains? jwk k)
-                        (update jwk k #(:alg-field (% u/alg-info)))
+                        (update jwk k
+                                #(:alg-field ((lower-case-kw %) u/alg-info)))
                         jwk))]
     (-> uncensored
         (convert-alg :alg)
