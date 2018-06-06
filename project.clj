@@ -3,7 +3,7 @@
   :url "https://github.com/Curbside/curbside-jwt"
   :dependencies [[org.clojure/clojure "1.9.0-alpha15"]
                  [clj-time "0.13.0"]
-                 [com.nimbusds/nimbus-jose-jwt "4.35"
+                 [com.nimbusds/nimbus-jose-jwt "4.41.2"
                   :exclusions [net.minidev/json-smart]]
                  [net.minidev/json-smart "1.3.1"]
                  [cheshire "5.7.0"]
