@@ -70,6 +70,16 @@
                               :unsigning-keys [ec-jwk]})]
     (is (= std-claims unsigned))))
 
+
+(deftest test-uri-claim-almost-roundtrip
+  (let [claims (assoc std-claims "https://curbside.com/loyalty_id" "abc123")
+        expected (assoc std-claims :https://curbside.com/loyalty_id "abc123")
+        signed (sign-jwt {:signing-alg :es256 :claims claims
+                          :signing-key ec-jwk})
+        unsigned (unsign-jwt {:signing-alg :es256 :serialized-jwt signed
+                              :unsigning-keys [ec-jwk]})]
+    (is (= expected unsigned))))
+
 (deftest test-nested-map-claims
   (let [nested-map {:a {:b :c}}
         verify (fn [] (sign-unsign nested-map nested-map nil))

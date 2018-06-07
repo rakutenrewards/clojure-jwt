@@ -197,7 +197,7 @@
                     (let [kword (keyword k)]
                       (if (contains? field-defaults kword)
                         ((field-defaults kword) builder v)
-                        (custom-field-fn builder (name kword) v))))]
+                        (custom-field-fn builder (name k) v))))]
     (build-fn (reduce-kv add-field (builder-constructor) keywordized-fields))))
 
 (defn base64decode
