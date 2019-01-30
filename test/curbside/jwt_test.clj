@@ -4,9 +4,9 @@
             [curbside.jwt :refer :all]
             [curbside.jwt.keys :as keys]
             [curbside.jwt.util :as util]
-            [clojure.spec.test :as stest]
+            [clojure.spec.test.alpha :as stest]
             [curbside.jwt.spec :as spec]
-            [clojure.spec.gen :as g]
+            [clojure.spec.gen.alpha :as g]
             ;clojure.test.check is unused, but if it's not included,
             ;stest/check throws an incomprehensible exception.
             [clojure.test.check :as tc]

@@ -1,7 +1,8 @@
 (defproject com.curbside/curbside-jwt "1.0.0-SNAPSHOT"
   :description "JWT processing based on Nimbus JOSE + JWT"
   :url "https://github.com/Curbside/curbside-jwt"
-  :dependencies [[org.clojure/clojure "1.9.0-alpha15"]
+  :dependencies [[org.clojure/clojure "1.10.0"]
+                 [org.clojure/spec.alpha "0.2.176"]
                  [clj-time "0.13.0"]
                  [com.nimbusds/nimbus-jose-jwt "4.41.2"
                   :exclusions [net.minidev/json-smart]]

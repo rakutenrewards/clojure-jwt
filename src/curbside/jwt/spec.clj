@@ -1,7 +1,7 @@
 (ns curbside.jwt.spec
   (:require
-   [clojure.spec :as s]
-   [clojure.spec.gen :as g]
+   [clojure.spec.alpha :as s]
+   [clojure.spec.gen.alpha :as g]
    [curbside.jwt :as jwt]
    [curbside.jwt.keys :as keys]
    [curbside.jwt.util :as u]
