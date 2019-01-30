@@ -1,4 +1,4 @@
-(defproject com.curbside/curbside-jwt "1.0.0"
+(defproject com.curbside/curbside-jwt "2.0.0-SNAPSHOT"
   :description "JWT processing based on Nimbus JOSE + JWT"
   :url "https://github.com/Curbside/curbside-jwt"
   :dependencies [[org.clojure/clojure "1.10.0"]
