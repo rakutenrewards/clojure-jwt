@@ -8,7 +8,7 @@ FIXME
 
 ## Releasing to Artifactory
 
-1. Retrieve Artifactory credentials from the ops bundle in
+1. Retrieve Artifactory credentials from the eng.json bundle in
    https://github.com/Curbside/secrets
 2. Set the environment variables ARTIFACTORY_PASS and ARTIFACTORY_USER.
 3. Make sure that pgp-agent has your password cached so that you can sign stuff without being prompted.
