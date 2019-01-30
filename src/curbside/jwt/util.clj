@@ -15,8 +15,7 @@
                              DirectDecrypter ECDHDecrypter)
    (com.nimbusds.jose.jwk JWK JWKSet RSAKey)
    (com.nimbusds.jwt JWTClaimsSet SignedJWT EncryptedJWT)
-   (java.util Base64)
-   (com.nimbusds.jose.util.Base64)))
+   (java.util Base64)))
 
 (def alg-info
   {:dir {:type :encrypt
