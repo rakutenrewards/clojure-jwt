@@ -12,8 +12,10 @@
   :plugins [[lein-cljfmt "0.5.6"]]
   :profiles {:dev {:dependencies [[org.clojure/test.check "0.9.0"]
                                   [org.clojure/tools.trace "0.7.9"]]}}
+
   :deploy-repositories
-  [["releases"
-    {:url "https://curbside.jfrog.io/curbside/libs-release-local/"
-     :username :env/artifactory_user
-     :password :env/artifactory_pass}]])
+  [["release"
+    {:url "https://maven.pkg.github.com/RakutenReady/curbside-jwt"
+     :username :env/github_actor
+     :password :env/github_token
+     :sign-releases false}]])
