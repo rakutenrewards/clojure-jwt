@@ -14,7 +14,7 @@
                                   [org.clojure/tools.trace "0.7.9"]]}}
 
   :deploy-repositories
-  [["release"
+  [["releases"
     {:url "https://maven.pkg.github.com/RakutenReady/curbside-jwt"
      :username :env/github_actor
      :password :env/github_token
